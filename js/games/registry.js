@@ -1,8 +1,6 @@
-import * as aviamasters from './aviamasters/simulation.js';
 import * as fifaMasters from './fifa-masters/simulation.js';
 
 const games = [
-  aviamasters,
   fifaMasters,
 ];
 

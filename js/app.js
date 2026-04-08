@@ -6,7 +6,6 @@ import { listGames, getGame }   from './games/registry.js';
 // ─── DOM refs ───────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
-const gameSelect   = $('game-select');
 const pageTitle    = $('page-title');
 const seedInput    = $('seed-input');
 const btnRun       = $('btn-run');
@@ -51,19 +50,6 @@ function setActiveGame(id) {
   pageTitle.textContent = `${activeGame.gameInfo.name} \u2014 Seed Simulator`;
   document.title = pageTitle.textContent;
 }
-
-// populate game selector
-for (const g of listGames()) {
-  const opt = document.createElement('option');
-  opt.value = g.id;
-  opt.textContent = g.name;
-  gameSelect.appendChild(opt);
-}
-
-gameSelect.addEventListener('change', () => {
-  setActiveGame(gameSelect.value);
-  runSingle();
-});
 
 // ─── Tab switching ──────────────────────────────────────────────────────────
 tabBtns.forEach(btn => {
@@ -283,5 +269,5 @@ btnStopScan.addEventListener('click', () => { if (scanAbort) scanAbort.abort(); 
 });
 
 // ─── Init ───────────────────────────────────────────────────────────────────
-setActiveGame(gameSelect.value || listGames()[0].id);
+setActiveGame(listGames()[0].id);
 runSingle();

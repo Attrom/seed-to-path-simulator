@@ -6,17 +6,21 @@ export const gameInfo = {
 };
 
 // ─── Field constants ────────────────────────────────────────────────────────
-const FIELD_WIDTH      = 20000;
+const FIELD_WIDTH      = 27100;
 const BONUS_COUNT      = 40;
 const BONUS_HIT_R2     = 150 * 150;
-const MAX_MULT         = 1000;
-const TICK_LIMIT       = 50000;
+const MAX_MULT         = 500;
+const TICK_LIMIT       = 20000;
+
+// LAYOUT
+const GOAL_POST_POSITION = 1390;
+
 
 // Arc height is controlled by initial vy (integer).
 // Peak height = V*(V+1)/2, flight time = 2*V+1 ticks.
-// V ∈ [28, 70) → peak ≈ 406–2485, flight ≈ 57–139 ticks.
-const ARC_V_MIN        = 28;
-const ARC_V_RANGE      = 42;
+// V ∈ [20, 60) → peak ≈ 406–2485, flight ≈ 57–139 ticks.
+const ARC_V_MIN        = 20;
+const ARC_V_RANGE      = 40;
 
 // Goalpost targeting weight = proximity^POW * SCALE.
 // Tuned so the most-forward attacker (~81% proximity) gets ~90% goalpost chance.

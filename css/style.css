@@ -17,13 +17,7 @@ h1 {
   flex-wrap: wrap; justify-content: center; margin-bottom: 12px;
 }
 
-.game-select {
-  padding: 6px 12px; border: 1px solid #2a3050; border-radius: 6px;
-  background: #141828; color: #8eaadc; font-size: .85rem;
-  font-family: 'Consolas', monospace; cursor: pointer;
-  font-weight: 600;
-}
-.game-select:focus { outline: none; border-color: #5078c0; }
+
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 .controls {
