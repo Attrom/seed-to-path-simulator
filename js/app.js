@@ -37,6 +37,16 @@ const fMinTicks    = $('f-min-ticks');
 const fMaxTicks    = $('f-max-ticks');
 const fMinHpt      = $('f-min-hpt');
 const fMaxHpt      = $('f-max-hpt');
+const fMinBonuses     = $('f-min-bonuses');
+const fMaxBonuses     = $('f-max-bonuses');
+const fMinPosBonuses  = $('f-min-pos-bonuses');
+const fMaxPosBonuses  = $('f-max-pos-bonuses');
+const fMinNegBonuses  = $('f-min-neg-bonuses');
+const fMaxNegBonuses  = $('f-max-neg-bonuses');
+const fMinScorerShots = $('f-min-scorer-shots');
+const fMaxScorerShots = $('f-max-scorer-shots');
+const fMinShots    = $('f-min-shots');
+const fMaxShots    = $('f-max-shots');
 const btnScan      = $('btn-scan');
 const btnStopScan  = $('btn-stop-scan');
 const scanStatus   = $('scan-status');
@@ -212,6 +222,16 @@ function buildFilters() {
   f.maxTicks      = v(fMaxTicks);
   f.minHpt        = v(fMinHpt);
   f.maxHpt        = v(fMaxHpt);
+  f.minBonuses     = v(fMinBonuses);
+  f.maxBonuses     = v(fMaxBonuses);
+  f.minPosBonuses  = v(fMinPosBonuses);
+  f.maxPosBonuses  = v(fMaxPosBonuses);
+  f.minNegBonuses  = v(fMinNegBonuses);
+  f.maxNegBonuses  = v(fMaxNegBonuses);
+  f.minScorerShots = v(fMinScorerShots);
+  f.maxScorerShots = v(fMaxScorerShots);
+  f.minShots      = v(fMinShots);
+  f.maxShots      = v(fMaxShots);
   const oc = fOutcome.value;
   if (oc !== 'any') f.outcome = oc;
   return f;
@@ -264,7 +284,7 @@ async function runScan() {
 btnScan.addEventListener('click', runScan);
 btnStopScan.addEventListener('click', () => { if (scanAbort) scanAbort.abort(); });
 
-[scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt].forEach(el => {
+[scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt, fMinBonuses, fMaxBonuses, fMinPosBonuses, fMaxPosBonuses, fMinNegBonuses, fMaxNegBonuses, fMinScorerShots, fMaxScorerShots, fMinShots, fMaxShots].forEach(el => {
   el.addEventListener('keydown', e => { if (e.key === 'Enter') runScan(); });
 });
 

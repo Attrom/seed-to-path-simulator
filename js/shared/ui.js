@@ -74,6 +74,11 @@ export function renderResultsTable(results, container) {
     { key: 'peakAltitude',    label: 'Peak Alt',   align: 'num-right' },
     { key: 'ticks',           label: 'Ticks',      align: 'num-right' },
     { key: 'hitsPerTick',     label: 'Hits/Tick',  align: 'num-right' },
+    { key: 'bonusesCollected', label: 'Bonuses',            align: 'num-right' },
+    { key: 'positiveBonuses', label: 'Positive Bonuses',    align: 'num-right' },
+    { key: 'negativeBonuses', label: 'Negative Bonuses',   align: 'num-right' },
+    { key: 'scorerShots',     label: 'Shots from Scorer',  align: 'num-right' },
+    { key: 'shots',           label: 'Shots from Shooter', align: 'num-right' },
   ];
 
   let sortCol = 'seed';

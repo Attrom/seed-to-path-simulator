@@ -186,10 +186,10 @@ canvas { display: block; width: 100%; }
 /* filter grid: 5-col grid (label + 4 properties), rows for min/max */
 .filter-grid {
   display: grid;
-  grid-template-columns: auto repeat(5, 1fr);
+  grid-template-columns: auto repeat(10, 1fr);
   gap: 4px 8px;
   margin-bottom: 14px;
-  max-width: 660px;
+  max-width: 100%;
   width: 100%;
 }
 .fg-corner { }

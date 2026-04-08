@@ -10,6 +10,16 @@ function passesFilters(s, filters) {
   if (filters.maxTicks      != null && s.ticks            > filters.maxTicks)      return false;
   if (filters.minHpt        != null && s.hitsPerTick      < filters.minHpt)       return false;
   if (filters.maxHpt        != null && s.hitsPerTick      > filters.maxHpt)       return false;
+  if (filters.minBonuses     != null && s.bonusesCollected  < filters.minBonuses)     return false;
+  if (filters.maxBonuses     != null && s.bonusesCollected  > filters.maxBonuses)     return false;
+  if (filters.minPosBonuses  != null && s.positiveBonuses   < filters.minPosBonuses)  return false;
+  if (filters.maxPosBonuses  != null && s.positiveBonuses   > filters.maxPosBonuses)  return false;
+  if (filters.minNegBonuses  != null && s.negativeBonuses   < filters.minNegBonuses)  return false;
+  if (filters.maxNegBonuses  != null && s.negativeBonuses   > filters.maxNegBonuses)  return false;
+  if (filters.minScorerShots != null && s.scorerShots      < filters.minScorerShots) return false;
+  if (filters.maxScorerShots != null && s.scorerShots      > filters.maxScorerShots) return false;
+  if (filters.minShots      != null && s.shots            < filters.minShots)     return false;
+  if (filters.maxShots      != null && s.shots            > filters.maxShots)     return false;
   return true;
 }
 

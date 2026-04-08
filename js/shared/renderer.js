@@ -105,34 +105,90 @@ export function render(result, canvas, { frame = -1, bounds = null } = {}) {
     const mk = item.marker;
 
     if (mk?.shape === 'rect') {
-      const h = mk.height ?? 30;
+      const wH = mk.worldHeight;
+      let rectTop, rectH;
+      if (wH != null) {
+        rectTop = sy(wH);
+        rectH = sy(0) - rectTop;
+      } else {
+        const h = mk.height ?? 30;
+        rectTop = y - h;
+        rectH = h;
+      }
       ctx.globalAlpha = mk.opacity ?? 0.7;
       ctx.fillStyle = mk.color ?? '#fff';
-      ctx.fillRect(x - 2, y - h, 4, h);
+      ctx.fillRect(x - 3, rectTop, 6, rectH);
       ctx.globalAlpha = 1;
       return;
     }
 
-    const isHarm = item.isRocket || item.label === 'x0.5';
-    ctx.globalAlpha = mk?.opacity ?? 0.25;
-    ctx.fillStyle = mk?.color ?? (isHarm ? '#e05858' : '#6080a0');
-    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+    if (mk?.shape === 'capsule') {
+      const wH   = mk.worldHeight ?? 1000;
+      const base = mk.baseHeight ?? 0;
+      const topPx = sy(base + wH);
+      const botPx = sy(base);
+      const bodyH = Math.max(4, botPx - topPx);
 
-    if (mk?.outline) {
-      ctx.strokeStyle = mk.outline;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.stroke();
+      // horizontal extent (world-unit width or fallback to pixel heuristic)
+      const pixW = mk.worldWidth != null
+        ? Math.max(4, Math.abs(sx(mk.worldWidth) - sx(0)))
+        : Math.max(6, bodyH * 0.24);
+      const halfW = pixW / 2;
+      const r = Math.min(halfW, bodyH / 2);
+
+      // team A → model left of coordinate, team B → right
+      let lx, rx;
+      if (mk.side === 'left')       { rx = x; lx = x - pixW; }
+      else if (mk.side === 'right') { lx = x; rx = x + pixW; }
+      else                          { lx = x - halfW; rx = x + halfW; }
+      const cx = (lx + rx) / 2;
+
+      ctx.globalAlpha = mk.opacity ?? 0.75;
+      ctx.fillStyle = mk.color ?? '#808080';
+      ctx.beginPath();
+      ctx.moveTo(lx, botPx - r);
+      ctx.lineTo(lx, topPx + r);
+      ctx.arc(cx, topPx + r, halfW, Math.PI, 0, false);
+      ctx.lineTo(rx, botPx - r);
+      ctx.arc(cx, botPx - r, halfW, 0, Math.PI, false);
+      ctx.closePath();
+      ctx.fill();
+
+      if (mk.outline) {
+        ctx.strokeStyle = mk.outline;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#8090b0'; ctx.font = 'bold 9px Consolas, monospace'; ctx.textAlign = 'center';
+      ctx.fillText(item.label, cx, topPx - 4);
+      return;
     }
 
-    ctx.fillStyle = '#8090b0'; ctx.font = 'bold 9px Consolas, monospace'; ctx.textAlign = 'center';
-    ctx.fillText(item.label, x, y - 12);
-    ctx.globalAlpha = 1;
+    const isHarm = item.isRocket || item.label === 'x0.5';
+
+    ctx.font = 'bold 11px Consolas, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(item.label).width;
+    const padX = 6, padY = 4;
+    const bw = tw + padX * 2, bh = 14 + padY * 2, br = 5;
+    const bx = x - bw / 2, by = y - bh / 2;
+
+    ctx.globalAlpha = mk?.opacity ?? 0.55;
+    ctx.fillStyle = '#1a1a6e';
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.fill();
+
+    ctx.globalAlpha = mk?.opacity ?? 0.9;
+    ctx.fillStyle = isHarm ? '#e05858' : '#ffffff';
+    ctx.fillText(item.label, x, y);
+    ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
   };
 
   for (const m of result.missed) drawDefaultDisc(m);
 
   for (const c of result.collected) {
-    const reached = drawAll || c.dist <= curDist;
+    const reached = drawAll || (c.frame != null ? c.frame <= lastIdx : c.dist <= curDist);
     if (!reached) {
       drawDefaultDisc(c);
       continue;
@@ -141,21 +197,29 @@ export function render(result, canvas, { frame = -1, bounds = null } = {}) {
     const x = sx(c.dist), y = sy(c.alt);
     const isHarm = c.isRocket || c.label === 'x0.5';
 
+    ctx.font = 'bold 11px Consolas, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(c.label).width;
+    const padX = 6, padY = 4;
+    const bw = tw + padX * 2, bh = 14 + padY * 2, br = 5;
+    const bx = x - bw / 2, by = y - bh / 2;
+
     ctx.shadowColor = isHarm ? '#ff4040' : '#40ff80';
     ctx.shadowBlur = 10;
-    ctx.fillStyle = isHarm ? '#c03030' : c.label.startsWith('x') ? '#d0a020' : '#30a050';
-    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = isHarm ? '#3a1020' : '#1a1a6e';
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.fill();
     ctx.shadowBlur = 0;
 
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.stroke();
 
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Consolas, monospace'; ctx.textAlign = 'center';
-    ctx.fillText(c.label, x, y - 15);
+    ctx.fillStyle = isHarm ? '#ff6060' : '#ffffff';
+    ctx.fillText(c.label, x, y);
 
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = isHarm ? '#ff8080' : '#a0ffa0';
     ctx.font = '9px Consolas, monospace';
-    ctx.fillText(c.multAfter.toFixed(1) + '\u00d7', x, y + 22);
+    ctx.fillText(c.multAfter.toFixed(1) + '\u00d7', x, y + bh / 2 + 13);
   }
 
   // ── end marker (only when showing final frame) ──
@@ -173,20 +237,21 @@ export function render(result, canvas, { frame = -1, bounds = null } = {}) {
     }
   }
 
-  // ── plane marker ──
+  // ── ball marker ──
   const cur = result.path[lastIdx];
   if (cur) {
     const px = sx(cur.dist), py = sy(cur.alt);
+    const br = 5;
 
     if (!atEnd) {
       ctx.shadowColor = '#4090e0';
       ctx.shadowBlur = 14;
     }
 
-    ctx.fillStyle = '#4090e0';
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('\u{2708}', px + 2, py - 8);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(px, py, br, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#4090e0'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(px, py, br, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur = 0;
 
     if (!atEnd) {
