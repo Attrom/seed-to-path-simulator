@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seed Simulator</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="header-row">
+  <h1 id="page-title">Seed Simulator</h1>
+  <select id="game-select" class="game-select"></select>
+</div>
+
+<!-- ── Tabs ────────────────────────────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="tab-visualizer">Visualizer</button>
+  <button class="tab-btn" data-tab="tab-scanner">Seed Scanner</button>
+</div>
+
+<!-- ── Tab 1: Single-seed Visualizer ──────────────────────────────────────── -->
+<div id="tab-visualizer" class="tab-panel active">
+  <div class="controls">
+    <label for="seed-input">Seed:</label>
+    <input type="number" id="seed-input" placeholder="leave empty for random">
+    <button class="btn-primary" id="btn-run">Simulate</button>
+    <button class="btn-secondary" id="btn-random">Random</button>
+  </div>
+
+  <div class="playback-bar">
+    <button class="btn-play" id="btn-play" title="Play / Pause">&#9654;</button>
+    <button class="btn-secondary btn-sm" id="btn-reset" title="Reset to start">&#8634;</button>
+    <label class="speed-label" for="speed-select">Speed</label>
+    <select id="speed-select">
+      <option value="0.25">0.25x</option>
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+      <option value="5">5x</option>
+      <option value="10">10x</option>
+      <option value="20">20x</option>
+    </select>
+    <input type="range" id="scrubber" min="0" max="1" value="0" step="1" class="scrubber">
+    <span class="frame-counter" id="frame-counter">0 / 0</span>
+  </div>
+
+  <div class="info-bar" id="info-bar"></div>
+  <div class="canvas-wrap"><canvas id="canvas"></canvas></div>
+  <div class="events-strip" id="events-strip"></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<!-- ── Tab 2: Seed Scanner ────────────────────────────────────────────────── -->
+<div id="tab-scanner" class="tab-panel">
+
+  <!-- seed range + outcome + actions -->
+  <div class="scanner-row">
+    <div class="field">
+      <label for="scan-from">From seed</label>
+      <input type="number" id="scan-from" value="0">
+    </div>
+    <div class="field">
+      <label for="scan-to">To seed</label>
+      <input type="number" id="scan-to" value="1000">
+    </div>
+    <div class="field">
+      <label for="f-outcome">Outcome</label>
+      <select id="f-outcome">
+        <option value="any">Any</option>
+        <option value="win">Win</option>
+        <option value="crash">Crash</option>
+      </select>
+    </div>
+    <div class="field field-actions">
+      <label>&nbsp;</label>
+      <div class="btn-group">
+        <button class="btn-primary" id="btn-scan">Scan</button>
+        <button class="btn-danger" id="btn-stop-scan" hidden>Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- filter grid: header + min row + max row -->
+  <div class="filter-grid">
+    <div class="fg-corner"></div>
+    <div class="fg-header">Hits</div>
+    <div class="fg-header">Multiplier</div>
+    <div class="fg-header">Distance</div>
+    <div class="fg-header">Ticks</div>
+    <div class="fg-header">Hits/Tick</div>
+
+    <div class="fg-row-label">Min</div>
+    <div class="fg-cell"><input type="number" id="f-min-hits" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-mult" placeholder="—" step="any"></div>
+    <div class="fg-cell"><input type="number" id="f-min-dist" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-ticks" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-hpt" placeholder="—" step="any"></div>
+
+    <div class="fg-row-label">Max</div>
+    <div class="fg-cell"><input type="number" id="f-max-hits" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-mult" placeholder="—" step="any"></div>
+    <div class="fg-cell"><input type="number" id="f-max-dist" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-ticks" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-hpt" placeholder="—" step="any"></div>
+  </div>
+
+  <div class="scanner-status" id="scan-status"></div>
+  <div class="results-table-wrap" id="results-table-wrap"></div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

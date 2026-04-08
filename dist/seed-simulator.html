@@ -1,0 +1,1712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seed Simulator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0a0e1a; color: #e0e4f0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  display: flex; flex-direction: column; align-items: center;
+  min-height: 100vh; padding: 20px 16px;
+}
+
+h1 {
+  font-size: 1.3rem; font-weight: 600;
+  letter-spacing: .5px; color: #8eaadc;
+}
+
+.header-row {
+  display: flex; gap: 14px; align-items: center;
+  flex-wrap: wrap; justify-content: center; margin-bottom: 12px;
+}
+
+.game-select {
+  padding: 6px 12px; border: 1px solid #2a3050; border-radius: 6px;
+  background: #141828; color: #8eaadc; font-size: .85rem;
+  font-family: 'Consolas', monospace; cursor: pointer;
+  font-weight: 600;
+}
+.game-select:focus { outline: none; border-color: #5078c0; }
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+.controls {
+  display: flex; gap: 10px; align-items: center;
+  flex-wrap: wrap; justify-content: center; margin-bottom: 14px;
+}
+.controls label { font-size: .85rem; color: #8a90a8; }
+.controls input[type="number"],
+.controls input[type="text"],
+.controls select {
+  padding: 7px 10px; border: 1px solid #2a3050; border-radius: 6px;
+  background: #141828; color: #e0e4f0; font-size: .9rem;
+  font-family: 'Consolas', monospace;
+}
+.controls input[type="number"] { width: 160px; }
+.controls input[type="text"]   { width: 100px; }
+.controls select { min-width: 90px; }
+.controls input:focus,
+.controls select:focus { outline: none; border-color: #5078c0; }
+
+button {
+  padding: 7px 18px; border: none; border-radius: 6px;
+  font-size: .85rem; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+}
+.btn-primary   { background: #3060b0; color: #fff; }
+.btn-primary:hover   { background: #4070c8; }
+.btn-secondary { background: #28304a; color: #aab4d0; }
+.btn-secondary:hover { background: #343e5c; }
+.btn-danger    { background: #702020; color: #e8b0b0; }
+.btn-danger:hover    { background: #903030; }
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex; gap: 2px; margin-bottom: 14px;
+}
+.tab-btn {
+  padding: 8px 22px; border: 1px solid #2a3050; border-bottom: none;
+  border-radius: 6px 6px 0 0; background: #10152a; color: #6a7090;
+  font-size: .85rem; font-weight: 600; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.tab-btn:hover { background: #1a2240; color: #8eaadc; }
+.tab-btn.active { background: #1a2545; color: #8eaadc; border-color: #3a5080; }
+.tab-panel { display: none; width: 100%; }
+.tab-panel.active { display: flex; flex-direction: column; align-items: center; }
+
+/* ── Playback controls ────────────────────────────────────────────────────── */
+.playback-bar {
+  display: flex; gap: 8px; align-items: center;
+  width: 100%;
+  margin-bottom: 10px; padding: 6px 0;
+}
+.btn-play {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #3060b0; color: #fff; border: none;
+  font-size: 14px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .15s; flex-shrink: 0;
+  padding: 0;
+}
+.btn-play:hover { background: #4070c8; }
+.btn-play.playing { background: #d08020; }
+.btn-play.playing:hover { background: #e09030; }
+.btn-sm { padding: 5px 10px; font-size: .8rem; }
+.speed-label {
+  font-size: .78rem; color: #6a7090; margin-left: 4px;
+}
+#speed-select {
+  padding: 4px 8px; border: 1px solid #2a3050; border-radius: 6px;
+  background: #141828; color: #e0e4f0; font-size: .82rem;
+  font-family: 'Consolas', monospace; cursor: pointer;
+}
+#speed-select:focus { outline: none; border-color: #5078c0; }
+
+.scrubber {
+  flex: 1; min-width: 100px; height: 6px;
+  -webkit-appearance: none; appearance: none;
+  background: #1a2545; border-radius: 3px; outline: none;
+  cursor: pointer;
+}
+.scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #5090d0; border: 2px solid #0a0e1a;
+  cursor: pointer; transition: background .15s;
+}
+.scrubber::-webkit-slider-thumb:hover { background: #60a0e0; }
+.scrubber::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #5090d0; border: 2px solid #0a0e1a;
+  cursor: pointer;
+}
+.scrubber::-moz-range-track {
+  background: #1a2545; height: 6px; border-radius: 3px;
+}
+
+.frame-counter {
+  font-size: .78rem; color: #6a7090;
+  font-family: 'Consolas', monospace;
+  white-space: nowrap; min-width: 80px; text-align: right;
+}
+
+/* ── Canvas / visualizer ──────────────────────────────────────────────────── */
+.canvas-wrap {
+  position: relative; border: 1px solid #1e2540; border-radius: 8px;
+  overflow: hidden; background: #0d1220; margin-bottom: 14px;
+  width: 100%;
+}
+canvas { display: block; width: 100%; }
+
+.info-bar {
+  display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+  font-size: .85rem; margin-bottom: 10px;
+}
+.info-bar .tag {
+  padding: 4px 12px; border-radius: 4px; background: #181e30;
+  font-family: 'Consolas', monospace;
+}
+.tag-win     { color: #5cdb6a; }
+.tag-loss    { color: #e05858; }
+.tag-neutral { color: #8eaadc; }
+
+.events-strip {
+  display: flex; gap: 4px; flex-wrap: wrap; justify-content: center;
+  font-size: .78rem; font-family: 'Consolas', monospace;
+}
+.ev { padding: 3px 8px; border-radius: 4px; }
+.ev-gain      { background: #13291a; color: #5cdb6a; }
+.ev-loss      { background: #2a1313; color: #e05858; }
+.ev-start     { background: #1a2040; color: #8eaadc; }
+.ev-end-win   { background: #1a3520; color: #5cdb6a; border: 1px solid #2a6030; }
+.ev-end-crash { background: #351a1a; color: #e05858; border: 1px solid #602a2a; }
+.ev-arrow     { color: #3a4060; align-self: center; }
+
+.legend {
+  display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+  font-size: .75rem; color: #6a7090; margin-top: 10px;
+}
+.legend span { display: flex; align-items: center; gap: 4px; }
+.legend-dot {
+  width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+}
+
+/* ── Scanner panel ────────────────────────────────────────────────────────── */
+
+/* top row: seed range, outcome, buttons */
+.scanner-row {
+  display: flex; gap: 10px; align-items: flex-end;
+  flex-wrap: wrap; justify-content: center; margin-bottom: 12px;
+}
+.scanner-row .field { display: flex; flex-direction: column; gap: 3px; }
+.scanner-row .field label {
+  font-size: .75rem; color: #6a7090; text-transform: uppercase; letter-spacing: .5px;
+}
+.scanner-row .field input,
+.scanner-row .field select {
+  padding: 7px 10px; border: 1px solid #2a3050; border-radius: 6px;
+  background: #141828; color: #e0e4f0; font-size: .9rem;
+  font-family: 'Consolas', monospace; width: 120px;
+}
+.scanner-row .field input:focus,
+.scanner-row .field select:focus { outline: none; border-color: #5078c0; }
+.field-actions { justify-content: flex-end; }
+.btn-group { display: flex; gap: 6px; }
+
+/* filter grid: 5-col grid (label + 4 properties), rows for min/max */
+.filter-grid {
+  display: grid;
+  grid-template-columns: auto repeat(5, 1fr);
+  gap: 4px 8px;
+  margin-bottom: 14px;
+  max-width: 660px;
+  width: 100%;
+}
+.fg-corner { }
+.fg-header {
+  font-size: .72rem; color: #6a7090; text-transform: uppercase;
+  letter-spacing: .5px; text-align: center; padding-bottom: 2px;
+}
+.fg-row-label {
+  font-size: .78rem; color: #8a90a8; font-weight: 600;
+  display: flex; align-items: center; padding-right: 6px;
+  justify-content: flex-end;
+}
+.fg-cell input {
+  width: 100%; padding: 6px 8px;
+  border: 1px solid #2a3050; border-radius: 6px;
+  background: #141828; color: #e0e4f0;
+  font-size: .85rem; font-family: 'Consolas', monospace;
+  text-align: center;
+}
+.fg-cell input:focus { outline: none; border-color: #5078c0; }
+.fg-cell input::placeholder { color: #3a4060; }
+
+.scanner-status {
+  font-size: .8rem; color: #6a7090; margin-bottom: 8px; min-height: 1.2em;
+  text-align: center;
+}
+
+.results-table-wrap {
+  width: 100%; overflow-x: auto; margin-bottom: 14px;
+  border: 1px solid #1e2540; border-radius: 8px; background: #0d1220;
+}
+.results-table {
+  width: 100%; border-collapse: collapse;
+  font-size: .82rem; font-family: 'Consolas', monospace;
+}
+.results-table th {
+  padding: 8px 12px; text-align: left;
+  background: #141a30; color: #6a7aaa; font-weight: 600;
+  border-bottom: 1px solid #2a3050; position: sticky; top: 0;
+  cursor: pointer; user-select: none; white-space: nowrap;
+}
+.results-table th:hover { color: #8eaadc; }
+.results-table th .sort-arrow { margin-left: 4px; font-size: .7rem; }
+.results-table td {
+  padding: 6px 12px; border-bottom: 1px solid #141a2a;
+  white-space: nowrap;
+}
+.results-table tr:hover td { background: #161d35; }
+.results-table tr.row-win td:first-child  { border-left: 3px solid #5cdb6a; }
+.results-table tr.row-crash td:first-child { border-left: 3px solid #e05858; }
+.results-table tr { cursor: pointer; }
+.results-table .num-right { text-align: right; }
+.outcome-win   { color: #5cdb6a; font-weight: 600; }
+.outcome-crash { color: #e05858; font-weight: 600; }
+
+.results-table-wrap { max-height: 420px; overflow-y: auto; }
+
+</style>
+</head>
+<body>
+
+<div class="header-row">
+  <h1 id="page-title">Seed Simulator</h1>
+  <select id="game-select" class="game-select"></select>
+</div>
+
+<!-- ── Tabs ────────────────────────────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="tab-visualizer">Visualizer</button>
+  <button class="tab-btn" data-tab="tab-scanner">Seed Scanner</button>
+</div>
+
+<!-- ── Tab 1: Single-seed Visualizer ──────────────────────────────────────── -->
+<div id="tab-visualizer" class="tab-panel active">
+  <div class="controls">
+    <label for="seed-input">Seed:</label>
+    <input type="number" id="seed-input" placeholder="leave empty for random">
+    <button class="btn-primary" id="btn-run">Simulate</button>
+    <button class="btn-secondary" id="btn-random">Random</button>
+  </div>
+
+  <div class="playback-bar">
+    <button class="btn-play" id="btn-play" title="Play / Pause">&#9654;</button>
+    <button class="btn-secondary btn-sm" id="btn-reset" title="Reset to start">&#8634;</button>
+    <label class="speed-label" for="speed-select">Speed</label>
+    <select id="speed-select">
+      <option value="0.25">0.25x</option>
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+      <option value="5">5x</option>
+      <option value="10">10x</option>
+      <option value="20">20x</option>
+    </select>
+    <input type="range" id="scrubber" min="0" max="1" value="0" step="1" class="scrubber">
+    <span class="frame-counter" id="frame-counter">0 / 0</span>
+  </div>
+
+  <div class="info-bar" id="info-bar"></div>
+  <div class="canvas-wrap"><canvas id="canvas"></canvas></div>
+  <div class="events-strip" id="events-strip"></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<!-- ── Tab 2: Seed Scanner ────────────────────────────────────────────────── -->
+<div id="tab-scanner" class="tab-panel">
+
+  <!-- seed range + outcome + actions -->
+  <div class="scanner-row">
+    <div class="field">
+      <label for="scan-from">From seed</label>
+      <input type="number" id="scan-from" value="0">
+    </div>
+    <div class="field">
+      <label for="scan-to">To seed</label>
+      <input type="number" id="scan-to" value="1000">
+    </div>
+    <div class="field">
+      <label for="f-outcome">Outcome</label>
+      <select id="f-outcome">
+        <option value="any">Any</option>
+        <option value="win">Win</option>
+        <option value="crash">Crash</option>
+      </select>
+    </div>
+    <div class="field field-actions">
+      <label>&nbsp;</label>
+      <div class="btn-group">
+        <button class="btn-primary" id="btn-scan">Scan</button>
+        <button class="btn-danger" id="btn-stop-scan" hidden>Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- filter grid: header + min row + max row -->
+  <div class="filter-grid">
+    <div class="fg-corner"></div>
+    <div class="fg-header">Hits</div>
+    <div class="fg-header">Multiplier</div>
+    <div class="fg-header">Distance</div>
+    <div class="fg-header">Ticks</div>
+    <div class="fg-header">Hits/Tick</div>
+
+    <div class="fg-row-label">Min</div>
+    <div class="fg-cell"><input type="number" id="f-min-hits" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-mult" placeholder="—" step="any"></div>
+    <div class="fg-cell"><input type="number" id="f-min-dist" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-ticks" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-hpt" placeholder="—" step="any"></div>
+
+    <div class="fg-row-label">Max</div>
+    <div class="fg-cell"><input type="number" id="f-max-hits" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-mult" placeholder="—" step="any"></div>
+    <div class="fg-cell"><input type="number" id="f-max-dist" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-ticks" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-hpt" placeholder="—" step="any"></div>
+  </div>
+
+  <div class="scanner-status" id="scan-status"></div>
+  <div class="results-table-wrap" id="results-table-wrap"></div>
+</div>
+
+<script>
+// ── js/shared/prng.js ──
+const SharedPrng = {};
+(function() {
+class FlightRandom {
+  constructor() { this.s0 = 0; this.s1 = 0; this.s2 = 0; }
+
+  seed(v) {
+    this.s0 = v;
+    this.s1 = v * 213947 + 1238971;
+    this.s2 = v * 7431 + 94823;
+    this.random();
+  }
+
+  random(max = Number.MAX_SAFE_INTEGER) {
+    let t = this.s0;
+    const s = this.s1;
+    this.s0 = s;
+    t ^= t << 23;
+    t ^= t >> 17;
+    t ^= s;
+    t ^= s >> 26;
+    this.s1 = t;
+    this.s2 = (1103515245 * this.s2 + 12345) % 2147483648;
+    return (this.s0 + this.s1 + this.s2) % max;
+  }
+}
+
+  SharedPrng.FlightRandom = FlightRandom;
+})();
+
+// ── js/shared/renderer.js ──
+const SharedRenderer = {};
+(function() {
+const PAD = { top: 30, right: 30, bottom: 40, left: 55 };
+const MIN_CANVAS_H = 250;
+
+function niceStep(range, targetSteps) {
+  const raw = range / targetSteps;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const nice = norm < 1.5 ? 1 : norm < 3.5 ? 2 : norm < 7.5 ? 5 : 10;
+  return nice * mag;
+}
+
+function computeBounds(result) {
+  let maxDist = 0, maxAlt = 0;
+  for (const p of result.path)      { maxDist = Math.max(maxDist, p.dist); maxAlt = Math.max(maxAlt, p.alt); }
+  for (const c of result.collected) { maxDist = Math.max(maxDist, c.dist); maxAlt = Math.max(maxAlt, c.alt + 200); }
+  for (const m of result.missed)    { maxDist = Math.max(maxDist, m.dist); maxAlt = Math.max(maxAlt, m.alt + 200); }
+  maxDist *= 1.05;
+  maxAlt = Math.max(maxAlt * 1.1, 500);
+  return { maxDist, maxAlt };
+}
+
+function render(result, canvas, { frame = -1, bounds = null } = {}) {
+  if (!bounds) bounds = computeBounds(result);
+  const { maxDist, maxAlt } = bounds;
+
+  const CANVAS_W = canvas.parentElement?.clientWidth || 960;
+  const plotW = CANVAS_W - PAD.left - PAD.right;
+  const scale = plotW / maxDist;
+  const plotH = Math.max(maxAlt * scale, MIN_CANVAS_H - PAD.top - PAD.bottom);
+  const CANVAS_H = Math.round(plotH + PAD.top + PAD.bottom);
+
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+  const ctx = canvas.getContext('2d');
+
+  const drawAll = frame < 0;
+  const lastIdx = drawAll ? result.path.length - 1 : Math.min(frame, result.path.length - 1);
+  const curDist = result.path[lastIdx]?.dist ?? 0;
+
+  const sx = d => PAD.left + (d / maxDist) * plotW;
+  const sy = a => PAD.top + plotH - (a / maxAlt) * plotH;
+
+  // ── background ──
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+  bgGrad.addColorStop(0, '#0a0f22');
+  bgGrad.addColorStop(0.7, '#111830');
+  bgGrad.addColorStop(1, '#1a2845');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // ── ground ──
+  const groundY = sy(0);
+  ctx.fillStyle = '#1a2540';
+  ctx.fillRect(PAD.left, groundY, plotW, CANVAS_H - groundY);
+  ctx.strokeStyle = '#2a4070'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(PAD.left, groundY); ctx.lineTo(CANVAS_W - PAD.right, groundY); ctx.stroke();
+
+  // ── grid ──
+  ctx.strokeStyle = '#1a2040'; ctx.lineWidth = 0.5;
+  const altStep = niceStep(maxAlt, 5);
+  for (let a = altStep; a < maxAlt; a += altStep) {
+    ctx.beginPath(); ctx.moveTo(PAD.left, sy(a)); ctx.lineTo(CANVAS_W - PAD.right, sy(a)); ctx.stroke();
+  }
+  const distStep = niceStep(maxDist, 6);
+  for (let d = distStep; d < maxDist; d += distStep) {
+    ctx.beginPath(); ctx.moveTo(sx(d), PAD.top); ctx.lineTo(sx(d), groundY); ctx.stroke();
+  }
+
+  // ── axis labels ──
+  ctx.fillStyle = '#4a5580'; ctx.font = '10px Consolas, monospace'; ctx.textAlign = 'right';
+  for (let a = 0; a <= maxAlt; a += altStep) {
+    ctx.fillText(Math.round(a / 100).toString(), PAD.left - 6, sy(a) + 3);
+  }
+  ctx.textAlign = 'center';
+  for (let d = 0; d <= maxDist; d += distStep) {
+    ctx.fillText(Math.round(d / 100).toString(), sx(d), groundY + 16);
+  }
+  ctx.fillStyle = '#4a5580'; ctx.font = '10px Consolas, monospace'; ctx.textAlign = 'center';
+  ctx.fillText('distance (\u00d7100)', PAD.left + plotW / 2, CANVAS_H - 6);
+  ctx.save();
+  ctx.translate(12, PAD.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText('altitude (\u00d7100)', 0, 0);
+  ctx.restore();
+
+  // ── flight path (up to lastIdx) ──
+  ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  if (lastIdx >= 1) {
+    for (let i = 1; i <= lastIdx; i++) {
+      const p0 = result.path[i - 1], p1 = result.path[i];
+      const m = p1.mult;
+      ctx.strokeStyle = m >= 10 ? '#ff6a4a' : m >= 3 ? '#f0b020' : m >= 1.5 ? '#60d870' : '#4090e0';
+      ctx.beginPath(); ctx.moveTo(sx(p0.dist), sy(p0.alt)); ctx.lineTo(sx(p1.dist), sy(p1.alt)); ctx.stroke();
+    }
+  }
+
+  // ── default marker for bonuses / field objects ──
+  // Items may carry an optional `marker` object to override styling:
+  //   marker.color    – fill color
+  //   marker.outline  – stroke color around the circle
+  //   marker.opacity  – override alpha (default 0.25)
+  //   marker.shape    – 'rect' draws a vertical rectangle instead of a circle
+  //   marker.height   – rectangle height in pixels (default 30)
+  const drawDefaultDisc = (item) => {
+    const x = sx(item.dist), y = sy(item.alt);
+    const mk = item.marker;
+
+    if (mk?.shape === 'rect') {
+      const h = mk.height ?? 30;
+      ctx.globalAlpha = mk.opacity ?? 0.7;
+      ctx.fillStyle = mk.color ?? '#fff';
+      ctx.fillRect(x - 2, y - h, 4, h);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    const isHarm = item.isRocket || item.label === 'x0.5';
+    ctx.globalAlpha = mk?.opacity ?? 0.25;
+    ctx.fillStyle = mk?.color ?? (isHarm ? '#e05858' : '#6080a0');
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+
+    if (mk?.outline) {
+      ctx.strokeStyle = mk.outline;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    ctx.fillStyle = '#8090b0'; ctx.font = 'bold 9px Consolas, monospace'; ctx.textAlign = 'center';
+    ctx.fillText(item.label, x, y - 12);
+    ctx.globalAlpha = 1;
+  };
+
+  for (const m of result.missed) drawDefaultDisc(m);
+
+  for (const c of result.collected) {
+    const reached = drawAll || c.dist <= curDist;
+    if (!reached) {
+      drawDefaultDisc(c);
+      continue;
+    }
+
+    const x = sx(c.dist), y = sy(c.alt);
+    const isHarm = c.isRocket || c.label === 'x0.5';
+
+    ctx.shadowColor = isHarm ? '#ff4040' : '#40ff80';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = isHarm ? '#c03030' : c.label.startsWith('x') ? '#d0a020' : '#30a050';
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke();
+
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Consolas, monospace'; ctx.textAlign = 'center';
+    ctx.fillText(c.label, x, y - 15);
+
+    ctx.fillStyle = isHarm ? '#ff8080' : '#a0ffa0';
+    ctx.font = '9px Consolas, monospace';
+    ctx.fillText(c.multAfter.toFixed(1) + '\u00d7', x, y + 22);
+  }
+
+  // ── end marker (only when showing final frame) ──
+  const atEnd = drawAll || lastIdx >= result.path.length - 1;
+  if (atEnd) {
+    if (result.landed) {
+      const lx = sx(result.path[result.path.length - 1].dist);
+      ctx.fillStyle = '#5cdb6a'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('\u{1F6A2}', lx, groundY + 30);
+    } else {
+      const last = result.path[result.path.length - 1];
+      const lx = sx(last.dist), ly = sy(last.alt);
+      ctx.fillStyle = '#e05858'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('\u{1F4A5}', lx, ly - 5);
+    }
+  }
+
+  // ── plane marker ──
+  const cur = result.path[lastIdx];
+  if (cur) {
+    const px = sx(cur.dist), py = sy(cur.alt);
+
+    if (!atEnd) {
+      ctx.shadowColor = '#4090e0';
+      ctx.shadowBlur = 14;
+    }
+
+    ctx.fillStyle = '#4090e0';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('\u{2708}', px + 2, py - 8);
+    ctx.shadowBlur = 0;
+
+    if (!atEnd) {
+      const mult = cur.mult;
+      const tag = mult.toFixed(1) + '\u00d7';
+      ctx.font = 'bold 11px Consolas, monospace';
+      ctx.fillStyle = mult >= 10 ? '#ff6a4a' : mult >= 3 ? '#f0b020' : mult >= 1.5 ? '#60d870' : '#4090e0';
+      ctx.fillText(tag, px + 2, py - 22);
+    }
+  }
+}
+
+  SharedRenderer.computeBounds = computeBounds;
+  SharedRenderer.render = render;
+})();
+
+// ── js/shared/scanner.js ──
+const SharedScanner = {};
+(function() {
+function passesFilters(s, filters) {
+  if (filters.minHits       != null && s.objectsHit      < filters.minHits)       return false;
+  if (filters.maxHits       != null && s.objectsHit      > filters.maxHits)       return false;
+  if (filters.minMultiplier != null && s.finalMultiplier  < filters.minMultiplier) return false;
+  if (filters.maxMultiplier != null && s.finalMultiplier  > filters.maxMultiplier) return false;
+  if (filters.outcome && filters.outcome !== 'any' && s.outcome !== filters.outcome) return false;
+  if (filters.minDistance   != null && s.distance         < filters.minDistance)    return false;
+  if (filters.maxDistance   != null && s.distance         > filters.maxDistance)    return false;
+  if (filters.minTicks      != null && s.ticks            < filters.minTicks)      return false;
+  if (filters.maxTicks      != null && s.ticks            > filters.maxTicks)      return false;
+  if (filters.minHpt        != null && s.hitsPerTick      < filters.minHpt)       return false;
+  if (filters.maxHpt        != null && s.hitsPerTick      > filters.maxHpt)       return false;
+  return true;
+}
+
+/**
+ * Scan a range of seeds using the supplied simulateSummary function.
+ *
+ * @param {Function} simulateSummaryFn  (seed) => summary object
+ */
+function scanSeeds(simulateSummaryFn, from, to, filters = {}) {
+  const results = [];
+  for (let seed = from; seed < to; seed++) {
+    const s = simulateSummaryFn(seed);
+    if (passesFilters(s, filters)) results.push(s);
+  }
+  return results;
+}
+
+/**
+ * Async version that yields to the event loop periodically.
+ *
+ * @param {Function} simulateSummaryFn  (seed) => summary object
+ */
+async function scanSeedsAsync(simulateSummaryFn, from, to, filters = {}, onProgress = null, abortSignal = null) {
+  const results = [];
+  const total = to - from;
+  const BATCH = 500;
+
+  for (let seed = from; seed < to; seed++) {
+    if (abortSignal?.aborted) break;
+
+    const s = simulateSummaryFn(seed);
+    if (passesFilters(s, filters)) results.push(s);
+
+    if ((seed - from) % BATCH === 0) {
+      if (onProgress) onProgress(seed - from, total);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  if (onProgress) onProgress(total, total);
+  return results;
+}
+
+  SharedScanner.scanSeeds = scanSeeds;
+  SharedScanner.scanSeedsAsync = scanSeedsAsync;
+})();
+
+// ── js/shared/ui.js ──
+const SharedUI = {};
+(function() {
+function updateInfoBar(result, container) {
+  container.innerHTML = '';
+  const tag = (cls, text) => {
+    const s = document.createElement('span');
+    s.className = 'tag ' + cls;
+    s.textContent = text;
+    container.appendChild(s);
+  };
+  tag('tag-neutral', `Seed: ${result.seed}`);
+  tag('tag-neutral', `Ticks: ${result.ticks}`);
+  tag(result.landed ? 'tag-win' : 'tag-loss',
+    result.landed ? `Win  ${result.totalMult.toFixed(2)}\u00d7` : 'Loss  0\u00d7');
+  tag('tag-neutral', `Bonuses hit: ${result.collected.length}`);
+  tag('tag-neutral', `Bonuses missed: ${result.missed.length}`);
+  tag('tag-neutral', `Peak alt: ${Math.round(result.peakAlt)}`);
+}
+
+function updateEventsStrip(result, container) {
+  container.innerHTML = '';
+  result.events.forEach((ev, i) => {
+    if (i > 0) {
+      const arr = document.createElement('span');
+      arr.className = 'ev-arrow';
+      arr.textContent = '\u2192';
+      container.appendChild(arr);
+    }
+    const el = document.createElement('span');
+    const START_EV = ['takeoff', 'kickoff'];
+    const WIN_EV   = ['landed', 'goal'];
+    const LOSS_EV  = ['crashed', 'saved'];
+    if (START_EV.includes(ev.label))      el.className = 'ev ev-start';
+    else if (WIN_EV.includes(ev.label))   el.className = 'ev ev-end-win';
+    else if (LOSS_EV.includes(ev.label))  el.className = 'ev ev-end-crash';
+    else el.className = ev.isLoss ? 'ev ev-loss' : 'ev ev-gain';
+    el.textContent = ev.label + ' ' + ev.mult.toFixed(2) + '\u00d7';
+    container.appendChild(el);
+  });
+}
+
+function updateLegend(container) {
+  container.innerHTML = '';
+  const item = (color, text) => {
+    const s = document.createElement('span');
+    s.innerHTML = `<span class="legend-dot" style="background:${color}"></span> ${text}`;
+    container.appendChild(s);
+  };
+  item('#4090e0', 'Path 1-1.5\u00d7');
+  item('#60d870', 'Path 1.5-3\u00d7');
+  item('#f0b020', 'Path 3-10\u00d7');
+  item('#ff6a4a', 'Path 10\u00d7+');
+  item('#30a050', '+N collected');
+  item('#d0a020', 'xN collected');
+  item('#c03030', 'x0.5 / rocket');
+  item('#6080a0', 'Missed (dim)');
+}
+
+function renderResultsTable(results, container) {
+  container.innerHTML = '';
+  if (results.length === 0) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a5580">No seeds matched the filters.</div>';
+    return null;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'results-table';
+
+  const cols = [
+    { key: 'seed',            label: 'Seed',      align: 'num-right' },
+    { key: 'objectsHit',      label: 'Hits',      align: 'num-right' },
+    { key: 'outcome',         label: 'Outcome',   align: '' },
+    { key: 'finalMultiplier', label: 'Final Mult', align: 'num-right' },
+    { key: 'totalMultiplier', label: 'Total Mult', align: 'num-right' },
+    { key: 'distance',        label: 'Distance',   align: 'num-right' },
+    { key: 'peakAltitude',    label: 'Peak Alt',   align: 'num-right' },
+    { key: 'ticks',           label: 'Ticks',      align: 'num-right' },
+    { key: 'hitsPerTick',     label: 'Hits/Tick',  align: 'num-right' },
+  ];
+
+  let sortCol = 'seed';
+  let sortAsc = true;
+
+  function sortAndRender() {
+    results.sort((a, b) => {
+      let va = a[sortCol], vb = b[sortCol];
+      if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+      if (va < vb) return sortAsc ? -1 : 1;
+      if (va > vb) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
+    const thead = table.querySelector('thead');
+    for (const th of thead.querySelectorAll('th')) {
+      const arrow = th.querySelector('.sort-arrow');
+      const col = th.dataset.col;
+      arrow.textContent = col === sortCol ? (sortAsc ? '\u25b2' : '\u25bc') : '';
+    }
+
+    const tbody = table.querySelector('tbody');
+    tbody.innerHTML = '';
+    for (const r of results) {
+      const tr = document.createElement('tr');
+      tr.className = r.outcome === 'win' ? 'row-win' : 'row-crash';
+      tr.dataset.seed = r.seed;
+
+      for (const col of cols) {
+        const td = document.createElement('td');
+        if (col.align) td.className = col.align;
+        const v = r[col.key];
+        if (col.key === 'outcome') {
+          td.className = v === 'win' ? 'outcome-win' : 'outcome-crash';
+          td.textContent = v.toUpperCase();
+        } else if (typeof v === 'number' && !Number.isInteger(v)) {
+          td.textContent = v < 0.1 ? v.toFixed(4) : v.toFixed(2);
+        } else {
+          td.textContent = v;
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  }
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  for (const col of cols) {
+    const th = document.createElement('th');
+    th.dataset.col = col.key;
+    th.innerHTML = `${col.label}<span class="sort-arrow"></span>`;
+    th.addEventListener('click', () => {
+      if (sortCol === col.key) sortAsc = !sortAsc;
+      else { sortCol = col.key; sortAsc = true; }
+      sortAndRender();
+    });
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  table.appendChild(tbody);
+
+  container.appendChild(table);
+  sortAndRender();
+  return table;
+}
+
+  SharedUI.updateInfoBar = updateInfoBar;
+  SharedUI.updateEventsStrip = updateEventsStrip;
+  SharedUI.updateLegend = updateLegend;
+  SharedUI.renderResultsTable = renderResultsTable;
+})();
+
+// ── js/games/aviamasters/simulation.js ──
+const GameAviamasters = {};
+(function() {
+const { FlightRandom } = SharedPrng;
+
+const gameInfo = {
+  id:   'aviamasters',
+  name: 'Aviamasters',
+};
+
+const BASE_WIN        = 2 ** 13;
+const MAX_WIN         = 250 * BASE_WIN;
+const GRAVITY_CAP     = 60;
+const MAX_UPWARD_SPEED = 110;
+const X_DECEL         = 2;
+const LAND_ZONE       = 1350;
+const WRAP_L          = 2500;
+const WRAP_R          = 4050;
+const ROCKET_YADD     = 20;
+
+// ─── Bonus ──────────────────────────────────────────────────────────────────
+class Bonus {
+  constructor(game, rng, yAdd, add, mult = 1, rocketAfter = 0) {
+    this.game = game; this.rng = rng; this.yAdd = yAdd; this.add = add;
+    this.mult = mult; this.rarity = 2000 + add * 400 + mult * 2000;
+    this.speed = 0; this.rocketAfter = rocketAfter;
+    this.x = 0; this.y = 0; this.isRocket = false; this.respawnCount = 0;
+    this.siblings = []; this.onCollected = null;
+  }
+
+  get label() {
+    if (this.isRocket) return 'x0.5';
+    return this.add ? `+${this.add}` : `x${this.mult}`;
+  }
+
+  newRound() { this.isRocket = false; this.respawnCount = 0; this.respawn(); }
+
+  respawn() {
+    this.x = this.rng.random(this.rarity) + 4000;
+    this.y = -this.rng.random(4000) - 700;
+    while (this.siblings.some(b => b !== this && Math.abs(b.x - this.x) < 300 && Math.abs(b.y - this.y) < 450))
+      this.y -= 200;
+  }
+
+  update() {
+    this.x += this.game.xSpeed + this.speed;
+    if (this.x > 0) return;
+    const hit = Math.abs(this.game.playerY - this.y) <= 220;
+    if (hit) {
+      if (this.isRocket || this.mult < 1) {
+        const loss = Math.max(1, Math.floor(this.game.win * 0.5));
+        this.game.win = Math.max(0, this.game.win - loss);
+      } else {
+        this.game.win += this.add * BASE_WIN;
+        this.game.win *= this.mult;
+      }
+      this.game.win = Math.min(MAX_WIN, this.game.win);
+      const maxB = Math.max(-this.game.ySpeed + 20, Math.floor((6000 + this.game.playerY + 0.5) / 64));
+      const ya = this.isRocket ? ROCKET_YADD : this.yAdd;
+      this.game.ySpeed = Math.max(-maxB, -MAX_UPWARD_SPEED, this.game.ySpeed + ya);
+      if (ya < 0) this.game.ySpeed = Math.min(ya, this.game.ySpeed);
+    }
+    if (hit && this.onCollected) this.onCollected();
+    this.respawnCount++;
+    if (this.respawnCount === this.rocketAfter) this.isRocket = true;
+    this.respawn();
+  }
+}
+
+// ─── Flight Model ───────────────────────────────────────────────────────────
+class FlightModel {
+  constructor() {
+    this.rng = new FlightRandom();
+    this.win = 1; this.playerY = 0; this.xSpeed = 0; this.ySpeed = 0;
+    this.shipX = 0; this.isFinished = true; this.landed = false; this.distance = 0;
+    this.bonuses = [
+      new Bonus(this, this.rng, -40, 1, 1, 1),
+      new Bonus(this, this.rng, -40, 1, 1, 2),
+      new Bonus(this, this.rng, -40, 1, 1, 3),
+      new Bonus(this, this.rng, -40, 2, 1, 4),
+      new Bonus(this, this.rng, -40, 2, 1, 5),
+      new Bonus(this, this.rng, -40, 5, 1, 6),
+      new Bonus(this, this.rng, -40, 10, 1, 7),
+      new Bonus(this, this.rng, -40, 0, 2, 8),
+      new Bonus(this, this.rng, -40, 0, 3, 9),
+      new Bonus(this, this.rng, -40, 0, 4, 10),
+      new Bonus(this, this.rng, -40, 0, 5, 11),
+      new Bonus(this, this.rng, ROCKET_YADD, 0, 0.5),
+    ];
+    for (const b of this.bonuses) b.siblings = this.bonuses;
+  }
+
+  seed(v) {
+    this.distance = 0; this.isFinished = false; this.win = BASE_WIN;
+    this.landed = false; this.ySpeed = -78; this.xSpeed = -80;
+    this.playerY = 0; this.shipX = 0; this.rng.seed(v);
+    for (const b of this.bonuses) b.y = -1e6;
+    for (const b of this.bonuses) b.newRound();
+  }
+
+  update() {
+    this.shipX += this.xSpeed;
+    this.distance -= this.xSpeed;
+    if (this.shipX < -WRAP_L) this.shipX = WRAP_R;
+    if (this.landed) {
+      if (this.shipX > -LAND_ZONE) {
+        if (this.xSpeed) this.xSpeed += X_DECEL;
+        if (this.xSpeed === 0) this.isFinished = true;
+      } else { this.landed = false; this.isFinished = true; }
+    } else {
+      if (this.ySpeed < GRAVITY_CAP) this.ySpeed++;
+      this.playerY += this.ySpeed;
+      if (this.playerY >= 0) {
+        if (this.shipX > -LAND_ZONE && this.shipX < LAND_ZONE)
+          { this.landed = true; this.ySpeed = 0; this.playerY = 0; }
+        else this.isFinished = true;
+        if (this.xSpeed) this.xSpeed += X_DECEL;
+      }
+    }
+    for (const b of this.bonuses) b.update();
+  }
+
+  multiplier()      { return this.win / BASE_WIN; }
+  totalMultiplier() { return this.landed ? this.win / BASE_WIN : 0; }
+}
+
+// ─── Simulation ─────────────────────────────────────────────────────────────
+
+const TICK_LIMIT = 50000;
+
+function simulate(seed) {
+  const model = new FlightModel();
+  model.seed(seed);
+
+  const path      = [];
+  const collected = [];
+  const missed    = [];
+  const events    = [];
+  let prevMult    = 0;
+  let peakAlt     = 0;
+
+  const pushEv = (label, mult) => {
+    events.push({ label, mult, isLoss: prevMult > mult });
+    prevMult = mult;
+  };
+  pushEv('takeoff', 1);
+
+  for (const b of model.bonuses) {
+    b.onCollected = () => {
+      collected.push({
+        dist: model.distance, alt: -model.playerY, label: b.label,
+        isRocket: b.isRocket,
+        multBefore: prevMult, multAfter: model.multiplier(),
+      });
+      pushEv(b.label, model.multiplier());
+    };
+  }
+
+  let ticks = 0;
+  while (!model.isFinished && ticks < TICK_LIMIT) {
+    for (const b of model.bonuses) {
+      if (b.x > 0 && b.x <= Math.abs(model.xSpeed) + 1) {
+        const willHit = Math.abs(model.playerY - b.y) <= 220;
+        if (!willHit) {
+          missed.push({ dist: model.distance, alt: -b.y, label: b.label, isRocket: b.isRocket });
+        }
+      }
+    }
+    model.update();
+    ticks++;
+    const alt = -model.playerY;
+    if (alt > peakAlt) peakAlt = alt;
+    path.push({ dist: model.distance, alt, mult: model.multiplier() });
+  }
+
+  const totalMult = model.totalMultiplier();
+  pushEv(model.landed ? 'landed' : 'crashed', totalMult);
+  const shipDist = model.distance + model.shipX;
+
+  return { seed, path, collected, missed, events, landed: model.landed, totalMult, ticks, shipDist, peakAlt };
+}
+
+function simulateSummary(seed) {
+  const model = new FlightModel();
+  model.seed(seed);
+
+  let objectsHit  = 0;
+  let peakAlt     = 0;
+
+  for (const b of model.bonuses) {
+    b.onCollected = () => { objectsHit++; };
+  }
+
+  let ticks = 0;
+  while (!model.isFinished && ticks < TICK_LIMIT) {
+    model.update();
+    ticks++;
+    const alt = -model.playerY;
+    if (alt > peakAlt) peakAlt = alt;
+  }
+
+  return {
+    seed,
+    objectsHit,
+    finalMultiplier: model.multiplier(),
+    totalMultiplier: model.totalMultiplier(),
+    outcome: model.landed ? 'win' : 'crash',
+    distance: model.distance,
+    peakAltitude: peakAlt,
+    ticks,
+    hitsPerTick: ticks > 0 ? objectsHit / ticks : 0,
+  };
+}
+
+  GameAviamasters.simulate = simulate;
+  GameAviamasters.simulateSummary = simulateSummary;
+  GameAviamasters.gameInfo = gameInfo;
+})();
+
+// ── js/games/fifa-masters/simulation.js ──
+const GameFifaMasters = {};
+(function() {
+const { FlightRandom } = SharedPrng;
+
+const gameInfo = {
+  id:   'fifa-masters',
+  name: 'FIFA Masters',
+};
+
+// ─── Field constants ────────────────────────────────────────────────────────
+const FIELD_WIDTH      = 20000;
+const BONUS_COUNT      = 40;
+const BONUS_HIT_R2     = 150 * 150;
+const MAX_MULT         = 1000;
+const TICK_LIMIT       = 50000;
+
+// Arc height is controlled by initial vy (integer).
+// Peak height = V*(V+1)/2, flight time = 2*V+1 ticks.
+// V ∈ [28, 70) → peak ≈ 406–2485, flight ≈ 57–139 ticks.
+const ARC_V_MIN        = 28;
+const ARC_V_RANGE      = 42;
+
+// Goalpost targeting weight = proximity^POW * SCALE.
+// Tuned so the most-forward attacker (~81% proximity) gets ~90% goalpost chance.
+const GOAL_W_POW       = 6;
+const GOAL_W_SCALE     = 96;
+const W_PRECISION      = 10000;
+
+// ─── Segment-to-point distance (for bonus collision) ────────────────────────
+function segDistSq(ax, ay, bx, by, px, py) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) { const ex = px - ax, ey = py - ay; return ex * ex + ey * ey; }
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+  const cx = ax + t * dx - px, cy = ay + t * dy - py;
+  return cx * cx + cy * cy;
+}
+
+// ─── Player arrangement ─────────────────────────────────────────────────────
+// KA - 3A 1B 2A 1B 1A 1B 1A 1B 1A 1B 1A 2B 1A 3B - KB
+const TEAM_PATTERN = [
+  'A','A','A', 'B',
+  'A','A', 'B',
+  'A', 'B',
+  'A', 'B',
+  'A', 'B',
+  'A', 'B',
+  'B', 'A',
+  'B','B','B',
+];
+
+function buildPlayers() {
+  const spacing = FIELD_WIDTH / (TEAM_PATTERN.length + 1);
+  return TEAM_PATTERN.map((team, i) => ({
+    x: Math.round(spacing * (i + 1)),
+    team,
+  }));
+}
+
+function findCenterTeamA(players) {
+  const center = FIELD_WIDTH / 2;
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < players.length; i++) {
+    if (players[i].team !== 'A') continue;
+    const d = Math.abs(players[i].x - center);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+// ─── Bonus generation ───────────────────────────────────────────────────────
+const BONUS_TYPES = [
+  { add: 1,  mult: 1   },
+  { add: 1,  mult: 1   },
+  { add: 1,  mult: 1   },
+  { add: 2,  mult: 1   },
+  { add: 2,  mult: 1   },
+  { add: 5,  mult: 1   },
+  { add: 10, mult: 1   },
+  { add: 0,  mult: 2   },
+  { add: 0,  mult: 3   },
+  { add: 0,  mult: 0.5 },
+  { add: 0,  mult: 0.5 },
+];
+
+function bonusLabel(b) {
+  return b.add ? `+${b.add}` : `x${b.mult}`;
+}
+
+function generateBonuses(rng) {
+  return Array.from({ length: BONUS_COUNT }, () => {
+    const t = BONUS_TYPES[rng.random(BONUS_TYPES.length)];
+    return {
+      x: rng.random(FIELD_WIDTH - 2000) + 1000,
+      y: rng.random(2500) + 400,
+      add: t.add, mult: t.mult,
+      label: bonusLabel(t),
+      collected: false,
+    };
+  });
+}
+
+// ─── Target selection ───────────────────────────────────────────────────────
+// Pick a player in the kick direction or the goalpost.
+// Nearby players are weighted higher (1/rank).
+// Goalpost weight rises steeply with proximity (proximity^6 * 96).
+
+function chooseTarget(rng, kickerX, kickRight, players) {
+  const goalX = kickRight ? FIELD_WIDTH : 0;
+
+  const candidates = [];
+  for (let i = 0; i < players.length; i++) {
+    if (kickRight ? players[i].x > kickerX : players[i].x < kickerX) {
+      candidates.push({ type: 'player', index: i, x: players[i].x });
+    }
+  }
+  candidates.sort((a, b) => Math.abs(a.x - kickerX) - Math.abs(b.x - kickerX));
+
+  const proximity = 1 - Math.abs(goalX - kickerX) / FIELD_WIDTH;
+  const goalW = Math.max(0.1, Math.pow(proximity, GOAL_W_POW) * GOAL_W_SCALE);
+
+  let totalW = goalW;
+  const weights = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const w = 1 / (i + 1);
+    weights.push(w);
+    totalW += w;
+  }
+
+  let roll = (rng.random(W_PRECISION) / W_PRECISION) * totalW;
+  for (let i = 0; i < candidates.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return candidates[i];
+  }
+  return { type: 'goal', x: goalX };
+}
+
+// ─── Arc computation ────────────────────────────────────────────────────────
+// Given integer V (initial vy), the ball peaks at V*(V+1)/2 and
+// returns to y=0 after exactly T = 2*V+1 ticks.
+// vx is computed so the ball lands exactly at targetX.
+
+function computeArc(fromX, targetX, V) {
+  const T = 2 * V + 1;
+  const vx = (targetX - fromX) / T;
+  return { vx, vy: V, T };
+}
+
+// ─── Full simulation with recording ─────────────────────────────────────────
+
+function simulate(seed) {
+  const rng = new FlightRandom();
+  rng.seed(seed);
+
+  const players  = buildPlayers();
+  const startIdx = findCenterTeamA(players);
+  const bonuses  = generateBonuses(rng);
+
+  let ballX = players[startIdx].x;
+  let ballY = 0;
+  let mult     = 1;
+  let finished = false;
+  let isGoal   = false;
+  let totalDist = 0;
+  let peakAlt   = 0;
+
+  const path      = [];
+  const collected = [];
+  const events    = [];
+  let prevMult    = 1;
+
+  const pushEv = (label, m) => {
+    events.push({ label, mult: m, isLoss: prevMult > m });
+    prevMult = m;
+  };
+  pushEv('kickoff', 1);
+
+  let ticks = 0;
+
+  while (!finished && ticks < TICK_LIMIT) {
+    // current player determines kick direction
+    const kickRight = ticks === 0
+      ? true
+      : players.find(p => p.x === ballX)?.team === 'A';
+
+    const target = chooseTarget(rng, ballX, kickRight, players);
+    const V = ARC_V_MIN + rng.random(ARC_V_RANGE);
+    const { vx, vy: initVy, T } = computeArc(ballX, target.x, V);
+
+    let vy = initVy;
+    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+      const prevBX = ballX, prevBY = ballY;
+      ballX += vx;
+      ballY += vy;
+      vy    -= 1;
+      totalDist += Math.abs(vx);
+      ticks++;
+
+      if (ballY > peakAlt) peakAlt = ballY;
+
+      for (const b of bonuses) {
+        if (b.collected) continue;
+        if (segDistSq(prevBX, prevBY, ballX, ballY, b.x, b.y) > BONUS_HIT_R2) continue;
+        b.collected = true;
+        if (b.add)       mult += b.add;
+        if (b.mult !== 1) mult *= b.mult;
+        mult = Math.min(MAX_MULT, Math.max(0, mult));
+        collected.push({
+          dist: b.x, alt: b.y, label: b.label,
+          isRocket: b.mult < 1,
+          multBefore: prevMult, multAfter: mult,
+        });
+        pushEv(b.label, mult);
+      }
+
+      path.push({ dist: ballX, alt: Math.max(0, ballY), mult });
+    }
+
+    // snap to exact target
+    ballX = target.x;
+    ballY = 0;
+
+    if (target.type === 'goal') {
+      isGoal   = rng.random(2) === 0;
+      finished = true;
+      pushEv(isGoal ? 'goal' : 'saved', isGoal ? mult : 0);
+    }
+  }
+
+  // uncollected bonuses + field markers → missed
+  const missed = [];
+  for (const b of bonuses) {
+    if (!b.collected) {
+      missed.push({ dist: b.x, alt: b.y, label: b.label, isRocket: b.mult < 1 });
+    }
+  }
+  // goalposts (white rectangles, drawn first so players render on top)
+  missed.push({ dist: 0, alt: 0, label: '', isRocket: false,
+    marker: { shape: 'rect', color: '#ffffff', opacity: 0.6, height: 34 } });
+  missed.push({ dist: FIELD_WIDTH, alt: 0, label: '', isRocket: false,
+    marker: { shape: 'rect', color: '#ffffff', opacity: 0.6, height: 34 } });
+  // field players (team-colored)
+  for (const p of players) {
+    missed.push({ dist: p.x, alt: 0, label: p.team, isRocket: false,
+      marker: { color: p.team === 'A' ? '#e05858' : '#4088e0', opacity: 0.75 } });
+  }
+  // goalkeepers (team-colored with white outline)
+  missed.push({ dist: 0, alt: 0, label: 'GK', isRocket: false,
+    marker: { color: '#e05858', outline: '#fff', opacity: 0.85 } });
+  missed.push({ dist: FIELD_WIDTH, alt: 0, label: 'GK', isRocket: false,
+    marker: { color: '#4088e0', outline: '#fff', opacity: 0.85 } });
+
+  return {
+    seed, path, collected, missed, events,
+    landed: isGoal,
+    totalMult: isGoal ? mult : 0,
+    ticks,
+    shipDist: totalDist,
+    peakAlt,
+  };
+}
+
+// ─── Lightweight summary (no path/event recording) ──────────────────────────
+
+function simulateSummary(seed) {
+  const rng = new FlightRandom();
+  rng.seed(seed);
+
+  const players  = buildPlayers();
+  const startIdx = findCenterTeamA(players);
+
+  const bonuses = [];
+  for (let i = 0; i < BONUS_COUNT; i++) {
+    const t = BONUS_TYPES[rng.random(BONUS_TYPES.length)];
+    bonuses.push({
+      x: rng.random(FIELD_WIDTH - 2000) + 1000,
+      y: rng.random(2500) + 400,
+      add: t.add, mult: t.mult, collected: false,
+    });
+  }
+
+  let ballX = players[startIdx].x;
+  let ballY = 0;
+  let mult      = 1;
+  let hits      = 0;
+  let peakAlt   = 0;
+  let totalDist = 0;
+  let finished  = false;
+  let isGoal    = false;
+
+  let ticks = 0;
+
+  while (!finished && ticks < TICK_LIMIT) {
+    const kickRight = ticks === 0
+      ? true
+      : players.find(p => p.x === ballX)?.team === 'A';
+
+    const target = chooseTarget(rng, ballX, kickRight, players);
+    const V = ARC_V_MIN + rng.random(ARC_V_RANGE);
+    const { vx, vy: initVy, T } = computeArc(ballX, target.x, V);
+
+    let vy = initVy;
+    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+      const prevBX = ballX, prevBY = ballY;
+      ballX += vx;
+      ballY += vy;
+      vy    -= 1;
+      totalDist += Math.abs(vx);
+      ticks++;
+      if (ballY > peakAlt) peakAlt = ballY;
+
+      for (const b of bonuses) {
+        if (b.collected) continue;
+        if (segDistSq(prevBX, prevBY, ballX, ballY, b.x, b.y) > BONUS_HIT_R2) continue;
+        b.collected = true;
+        hits++;
+        if (b.add)       mult += b.add;
+        if (b.mult !== 1) mult *= b.mult;
+        mult = Math.min(MAX_MULT, Math.max(0, mult));
+      }
+    }
+
+    ballX = target.x;
+    ballY = 0;
+
+    if (target.type === 'goal') {
+      isGoal   = rng.random(2) === 0;
+      finished = true;
+    }
+  }
+
+  return {
+    seed,
+    objectsHit:      hits,
+    finalMultiplier:  mult,
+    totalMultiplier:  isGoal ? mult : 0,
+    outcome:          isGoal ? 'win' : 'crash',
+    distance:         totalDist,
+    peakAltitude:     peakAlt,
+    ticks,
+    hitsPerTick:      ticks > 0 ? hits / ticks : 0,
+  };
+}
+
+  GameFifaMasters.simulate = simulate;
+  GameFifaMasters.simulateSummary = simulateSummary;
+  GameFifaMasters.gameInfo = gameInfo;
+})();
+
+// ── js/games/registry.js ──
+const GameRegistry = {};
+(function() {
+const aviamasters = GameAviamasters;
+const fifaMasters = GameFifaMasters;
+
+const games = [
+  aviamasters,
+  fifaMasters,
+];
+
+const gameMap = Object.fromEntries(games.map(g => [g.gameInfo.id, g]));
+
+function listGames() {
+  return games.map(g => g.gameInfo);
+}
+
+function getGame(id) {
+  return gameMap[id] ?? games[0];
+}
+
+  GameRegistry.listGames = listGames;
+  GameRegistry.getGame = getGame;
+})();
+
+// ── js/app.js ──
+(function() {
+const { render, computeBounds } = SharedRenderer;
+const { scanSeedsAsync } = SharedScanner;
+const { updateInfoBar, updateEventsStrip, updateLegend, renderResultsTable } = SharedUI;
+const { listGames, getGame } = GameRegistry;
+
+// ─── DOM refs ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+const gameSelect   = $('game-select');
+const pageTitle    = $('page-title');
+const seedInput    = $('seed-input');
+const btnRun       = $('btn-run');
+const btnRandom    = $('btn-random');
+const canvas       = $('canvas');
+const infoBar      = $('info-bar');
+const eventsStrip  = $('events-strip');
+const legend       = $('legend');
+
+const btnPlay      = $('btn-play');
+const btnReset     = $('btn-reset');
+const speedSelect  = $('speed-select');
+const scrubber     = $('scrubber');
+const frameCounter = $('frame-counter');
+
+const tabBtns      = document.querySelectorAll('.tab-btn');
+const tabPanels    = document.querySelectorAll('.tab-panel');
+
+const scanFrom     = $('scan-from');
+const scanTo       = $('scan-to');
+const fOutcome     = $('f-outcome');
+const fMinHits     = $('f-min-hits');
+const fMaxHits     = $('f-max-hits');
+const fMinMult     = $('f-min-mult');
+const fMaxMult     = $('f-max-mult');
+const fMinDist     = $('f-min-dist');
+const fMaxDist     = $('f-max-dist');
+const fMinTicks    = $('f-min-ticks');
+const fMaxTicks    = $('f-max-ticks');
+const fMinHpt      = $('f-min-hpt');
+const fMaxHpt      = $('f-max-hpt');
+const btnScan      = $('btn-scan');
+const btnStopScan  = $('btn-stop-scan');
+const scanStatus   = $('scan-status');
+const tableWrap    = $('results-table-wrap');
+
+// ─── Active game ────────────────────────────────────────────────────────────
+let activeGame = null;
+
+function setActiveGame(id) {
+  activeGame = getGame(id);
+  pageTitle.textContent = `${activeGame.gameInfo.name} \u2014 Seed Simulator`;
+  document.title = pageTitle.textContent;
+}
+
+// populate game selector
+for (const g of listGames()) {
+  const opt = document.createElement('option');
+  opt.value = g.id;
+  opt.textContent = g.name;
+  gameSelect.appendChild(opt);
+}
+
+gameSelect.addEventListener('change', () => {
+  setActiveGame(gameSelect.value);
+  runSingle();
+});
+
+// ─── Tab switching ──────────────────────────────────────────────────────────
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabPanels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ─── Animation state ────────────────────────────────────────────────────────
+let currentResult = null;
+let currentBounds = null;
+let animFrame     = -1;
+let playing       = false;
+let rafId         = null;
+let accumulator   = 0;
+
+function totalFrames() {
+  return currentResult ? currentResult.path.length : 0;
+}
+
+function getSpeed() {
+  return parseFloat(speedSelect.value) || 1;
+}
+
+function syncScrubber() {
+  const total = totalFrames();
+  scrubber.max = Math.max(0, total - 1);
+  scrubber.value = animFrame < 0 ? total - 1 : animFrame;
+  frameCounter.textContent = `${animFrame < 0 ? total : animFrame + 1} / ${total}`;
+}
+
+function drawCurrentFrame() {
+  if (!currentResult) return;
+  render(currentResult, canvas, { frame: animFrame, bounds: currentBounds });
+}
+
+function stopPlayback() {
+  playing = false;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  btnPlay.textContent = '\u25b6';
+  btnPlay.classList.remove('playing');
+}
+
+function startPlayback() {
+  if (!currentResult || totalFrames() === 0) return;
+  if (animFrame < 0 || animFrame >= totalFrames() - 1) {
+    animFrame = 0;
+    accumulator = 0;
+  }
+  playing = true;
+  btnPlay.textContent = '\u23f8';
+  btnPlay.classList.add('playing');
+  lastTimestamp = null;
+  rafId = requestAnimationFrame(animationLoop);
+}
+
+let lastTimestamp = null;
+
+function animationLoop(timestamp) {
+  if (!playing) return;
+
+  if (lastTimestamp === null) lastTimestamp = timestamp;
+  const dt = (timestamp - lastTimestamp) / 1000;
+  lastTimestamp = timestamp;
+
+  const ticksPerSec = 60 * getSpeed();
+  accumulator += dt * ticksPerSec;
+
+  const steps = Math.floor(accumulator);
+  if (steps > 0) {
+    accumulator -= steps;
+    animFrame = Math.min(animFrame + steps, totalFrames() - 1);
+  }
+
+  drawCurrentFrame();
+  syncScrubber();
+
+  if (animFrame >= totalFrames() - 1) {
+    animFrame = -1;
+    drawCurrentFrame();
+    syncScrubber();
+    updateInfoBar(currentResult, infoBar);
+    updateEventsStrip(currentResult, eventsStrip);
+    stopPlayback();
+    return;
+  }
+
+  rafId = requestAnimationFrame(animationLoop);
+}
+
+// ─── Single-seed visualizer ─────────────────────────────────────────────────
+function runSingle(seedOverride) {
+  stopPlayback();
+
+  let seed;
+  if (seedOverride !== undefined) {
+    seed = seedOverride;
+    seedInput.value = seed;
+  } else {
+    const raw = seedInput.value.trim();
+    seed = raw === '' ? Math.floor(Math.random() * 4294967296) : parseInt(raw, 10);
+    if (isNaN(seed)) seed = Math.floor(Math.random() * 4294967296);
+    seedInput.value = seed;
+  }
+
+  currentResult = activeGame.simulate(seed);
+  currentBounds = computeBounds(currentResult);
+  animFrame = -1;
+
+  drawCurrentFrame();
+  syncScrubber();
+  updateInfoBar(currentResult, infoBar);
+  updateEventsStrip(currentResult, eventsStrip);
+  updateLegend(legend);
+}
+
+btnRun.addEventListener('click', () => runSingle());
+btnRandom.addEventListener('click', () => { seedInput.value = ''; runSingle(); });
+seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSingle(); });
+
+// ─── Playback controls ─────────────────────────────────────────────────────
+btnPlay.addEventListener('click', () => {
+  if (playing) stopPlayback();
+  else startPlayback();
+});
+
+btnReset.addEventListener('click', () => {
+  stopPlayback();
+  if (!currentResult) return;
+  animFrame = 0;
+  accumulator = 0;
+  drawCurrentFrame();
+  syncScrubber();
+});
+
+scrubber.addEventListener('input', () => {
+  stopPlayback();
+  const v = parseInt(scrubber.value, 10);
+  animFrame = v >= totalFrames() - 1 ? -1 : v;
+  drawCurrentFrame();
+  syncScrubber();
+});
+
+// ─── Scanner ────────────────────────────────────────────────────────────────
+let scanAbort = null;
+
+function buildFilters() {
+  const f = {};
+  const v = el => { const n = parseFloat(el.value); return isNaN(n) ? null : n; };
+  f.minHits       = v(fMinHits);
+  f.maxHits       = v(fMaxHits);
+  f.minMultiplier = v(fMinMult);
+  f.maxMultiplier = v(fMaxMult);
+  f.minDistance   = v(fMinDist);
+  f.maxDistance   = v(fMaxDist);
+  f.minTicks      = v(fMinTicks);
+  f.maxTicks      = v(fMaxTicks);
+  f.minHpt        = v(fMinHpt);
+  f.maxHpt        = v(fMaxHpt);
+  const oc = fOutcome.value;
+  if (oc !== 'any') f.outcome = oc;
+  return f;
+}
+
+async function runScan() {
+  if (scanAbort) scanAbort.abort();
+  scanAbort = new AbortController();
+
+  const from = parseInt(scanFrom.value, 10) || 0;
+  const to   = parseInt(scanTo.value, 10)   || 1000;
+  const filters = buildFilters();
+  const total = to - from;
+
+  btnScan.disabled = true;
+  btnStopScan.hidden = false;
+  scanStatus.textContent = `Scanning 0 / ${total} ...`;
+  tableWrap.innerHTML = '';
+
+  const results = await scanSeedsAsync(activeGame.simulateSummary, from, to, filters, (done, tot) => {
+    scanStatus.textContent = `Scanning ${done} / ${tot} ...`;
+  }, scanAbort.signal);
+
+  btnScan.disabled = false;
+  btnStopScan.hidden = true;
+
+  if (scanAbort.signal.aborted) {
+    scanStatus.textContent = `Scan aborted. Found ${results.length} matching seeds so far.`;
+  } else {
+    scanStatus.textContent = `Done. ${results.length} seed${results.length !== 1 ? 's' : ''} matched out of ${total} scanned.`;
+  }
+
+  const table = renderResultsTable(results, tableWrap);
+  if (table) {
+    table.addEventListener('click', e => {
+      const row = e.target.closest('tr[data-seed]');
+      if (!row) return;
+      const seed = parseInt(row.dataset.seed, 10);
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanels.forEach(p => p.classList.remove('active'));
+      document.querySelector('[data-tab="tab-visualizer"]').classList.add('active');
+      $('tab-visualizer').classList.add('active');
+      runSingle(seed);
+    });
+  }
+
+  scanAbort = null;
+}
+
+btnScan.addEventListener('click', runScan);
+btnStopScan.addEventListener('click', () => { if (scanAbort) scanAbort.abort(); });
+
+[scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt].forEach(el => {
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') runScan(); });
+});
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+setActiveGame(gameSelect.value || listGames()[0].id);
+runSingle();
+
+})();
+
+</script>
+</body>
+</html>
