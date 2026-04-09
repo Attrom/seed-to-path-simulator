@@ -25,6 +25,7 @@ const css = read('css/style.css');
 const jsParts = [
   read('js/shared/prng.js'),
   read('js/shared/renderer.js'),
+  read('js/shared/advancedRenderer.js'),
   read('js/shared/scanner.js'),
   read('js/shared/ui.js'),
   read('js/games/fifa-masters/simulation.js'),
@@ -39,6 +40,7 @@ const jsParts = [
 const NS = {
   'js/shared/prng.js':                    'SharedPrng',
   'js/shared/renderer.js':                'SharedRenderer',
+  'js/shared/advancedRenderer.js':        'SharedAdvancedRenderer',
   'js/shared/scanner.js':                 'SharedScanner',
   'js/shared/ui.js':                      'SharedUI',
   'js/games/fifa-masters/simulation.js':  'GameFifaMasters',

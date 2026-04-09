@@ -1,4 +1,5 @@
 import { render, computeBounds } from './shared/renderer.js';
+import { loadAdvancedAssets, renderAdvanced } from './shared/advancedRenderer.js';
 import { scanSeedsAsync }       from './shared/scanner.js';
 import { updateInfoBar, updateEventsStrip, updateLegend, renderResultsTable } from './shared/ui.js';
 import { listGames, getGame }   from './games/registry.js';
@@ -287,6 +288,155 @@ btnStopScan.addEventListener('click', () => { if (scanAbort) scanAbort.abort(); 
 [scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt, fMinBonuses, fMaxBonuses, fMinPosBonuses, fMaxPosBonuses, fMinNegBonuses, fMaxNegBonuses, fMinScorerShots, fMaxScorerShots, fMinShots, fMaxShots].forEach(el => {
   el.addEventListener('keydown', e => { if (e.key === 'Enter') runScan(); });
 });
+
+// ─── Advanced Visualizer ─────────────────────────────────────────────────────
+const advSeedInput    = $('adv-seed-input');
+const advBtnRun       = $('adv-btn-run');
+const advBtnPlay      = $('adv-btn-play');
+const advSpeedSelect  = $('adv-speed-select');
+const advScrubber     = $('adv-scrubber');
+const advFrameCounter = $('adv-frame-counter');
+const advCanvas       = $('adv-canvas');
+
+let advResult  = null;
+let advFrame   = -1;
+let advPlaying = false;
+let advRafId   = null;
+let advAccum   = 0;
+let advLastTs  = null;
+
+function advTotal() { return advResult ? advResult.path.length : 0; }
+function advSpeed() { return parseFloat(advSpeedSelect.value) || 1; }
+
+function advSync() {
+  const t = advTotal();
+  advScrubber.max   = Math.max(0, t - 1);
+  advScrubber.value = advFrame < 0 ? t - 1 : advFrame;
+  advFrameCounter.textContent = `${advFrame < 0 ? t : advFrame + 1} / ${t}`;
+}
+
+function advDraw() {
+  if (!advResult) return;
+  renderAdvanced(advResult, advCanvas, advFrame);
+}
+
+function advStop() {
+  advPlaying = false;
+  if (advRafId) { cancelAnimationFrame(advRafId); advRafId = null; }
+  advBtnPlay.textContent = '\u25b6';
+  advBtnPlay.classList.remove('playing');
+}
+
+function advStart() {
+  if (!advResult || advTotal() === 0) return;
+  if (advFrame < 0 || advFrame >= advTotal() - 1) {
+    advFrame = 0;
+    advAccum = 0;
+  }
+  advPlaying = true;
+  advBtnPlay.textContent = '\u23f8';
+  advBtnPlay.classList.add('playing');
+  advLastTs = null;
+  advRafId  = requestAnimationFrame(advLoop);
+}
+
+function advLoop(ts) {
+  if (!advPlaying) return;
+  if (advLastTs === null) advLastTs = ts;
+  const dt = (ts - advLastTs) / 1000;
+  advLastTs = ts;
+
+  let slowFactor = 1;
+  if (advResult.lastShotGoalX != null && advFrame >= 0) {
+    const ballX = advResult.path[Math.min(advFrame, advResult.path.length - 1)]?.dist ?? 0;
+    const viewW = (advCanvas.parentElement?.clientWidth || window.innerWidth) * 10;
+    const distToGoal = Math.abs(advResult.lastShotGoalX - ballX);
+    if (distToGoal <= viewW && advFrame >= advResult.lastShotStartFrame) {
+      slowFactor = 0.35;
+    }
+  }
+  advAccum += dt * 60 * advSpeed() * slowFactor;
+  const steps = Math.floor(advAccum);
+  if (steps > 0) {
+    advAccum -= steps;
+    advFrame = Math.min(advFrame + steps, advTotal() - 1);
+  }
+
+  advDraw();
+  advSync();
+
+  if (advFrame >= advTotal() - 1) {
+    advFrame = -1;
+    advDraw();
+    advSync();
+    advStop();
+    return;
+  }
+  advRafId = requestAnimationFrame(advLoop);
+}
+
+function advRun(seedOverride) {
+  advStop();
+  let seed;
+  if (seedOverride !== undefined) {
+    seed = seedOverride;
+    advSeedInput.value = seed;
+  } else {
+    const raw = advSeedInput.value.trim();
+    seed = raw === '' ? Math.floor(Math.random() * 4294967296) : parseInt(raw, 10);
+    if (isNaN(seed)) seed = Math.floor(Math.random() * 4294967296);
+    advSeedInput.value = seed;
+  }
+  advResult = activeGame.simulate(seed);
+
+  // On goal outcomes, extend the path past the goalpost until the ball hits the ground
+  const lastEv = advResult.events[advResult.events.length - 1];
+  if (lastEv && lastEv.label === 'goal' && advResult.path.length >= 2) {
+    const p = advResult.path;
+    const n = p.length - 1;
+    const vx = p[n].dist - p[n - 1].dist;
+    let vy = (p[n].alt - p[n - 1].alt) - 1;
+    let ballX = p[n].dist;
+    let ballY = p[n].alt;
+    const mult = p[n].mult;
+    while (ballY > 0) {
+      ballX += vx;
+      ballY += vy;
+      vy -= 1;
+      p.push({ dist: ballX, alt: Math.max(0, ballY), mult });
+    }
+  }
+
+  advFrame  = 0;
+  advAccum  = 0;
+  advDraw();
+  advSync();
+  advStart();
+}
+
+advBtnRun.addEventListener('click', () => advRun());
+advSeedInput.addEventListener('keydown', e => { if (e.key === 'Enter') advRun(); });
+
+advBtnPlay.addEventListener('click', () => {
+  if (advPlaying) advStop();
+  else advStart();
+});
+
+advScrubber.addEventListener('input', () => {
+  advStop();
+  const v = parseInt(advScrubber.value, 10);
+  advFrame = v >= advTotal() - 1 ? -1 : v;
+  advDraw();
+  advSync();
+});
+
+window.addEventListener('resize', () => {
+  if (advResult && document.getElementById('tab-advanced')?.classList.contains('active')) {
+    advDraw();
+  }
+});
+
+loadAdvancedAssets();
 
 // ─── Init ───────────────────────────────────────────────────────────────────
 setActiveGame(listGames()[0].id);

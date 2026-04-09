@@ -8,7 +8,7 @@ export const gameInfo = {
 // ─── Field constants ────────────────────────────────────────────────────────
 const FIELD_WIDTH = 27100;
 const BONUS_NEGATIVE_PER_SIDE = 5;
-const BONUS_POSITIVE_PER_SIDE = 20;
+const BONUS_POSITIVE_PER_SIDE = 12;
 const BONUS_HIT_R2 = 150 * 150;
 const MAX_MULT = 500;
 const TICK_LIMIT = 20000;
@@ -33,7 +33,7 @@ const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
 // Range [ARC_PEAK_MIN, ARC_PEAK_MAX), capped at 2500 + dx so short shots stay low.
 const ARC_PEAK_MIN = 2500;
 const ARC_PEAK_MAX = 5000;
-const MAX_BALL_VX  = 100;
+const MAX_BALL_VX  = 130;
 
 // Goalpost targeting weight = proximity^POW * SCALE.
 // Tuned so the most-forward attacker (~81% proximity) gets ~90% goalpost chance.
@@ -310,8 +310,14 @@ export function simulate(seed) {
   pushEv('kickoff', 1);
 
   let ticks = 0;
+  let lastShotStartFrame = 0;
+  let lastShotPeakFrame  = 0;
+  let lastShotPeakAlt    = -Infinity;
 
   for (let s = 0; s < stops.length - 1 && ticks < TICK_LIMIT; s++) {
+    const isLastShot = s === stops.length - 2;
+    if (isLastShot) lastShotStartFrame = path.length;
+
     const to       = stops[s + 1];
     const dx       = Math.abs(to.x - ballX);
     const sPeak    = minPeakForSpeed(ballX, ballY, to.x, to.y);
@@ -331,6 +337,11 @@ export function simulate(seed) {
       ticks++;
 
       if (ballY > peakAlt) peakAlt = ballY;
+
+      if (isLastShot && ballY > lastShotPeakAlt) {
+        lastShotPeakAlt = ballY;
+        lastShotPeakFrame = path.length;
+      }
 
       for (const b of bonuses) {
         if (b.collected) continue;
@@ -423,6 +434,9 @@ export function simulate(seed) {
     negativeBonuses: negHits,
     scorerShots: shotCounts.get(scorerIdx) || 0,
     shots: Math.max(0, ...shotCounts.values()),
+    lastShotStartFrame,
+    lastShotPeakFrame,
+    lastShotGoalX: lastStop.x,
   };
 }
 

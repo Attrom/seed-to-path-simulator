@@ -168,6 +168,32 @@ canvas { display: block; width: 100%; }
   width: 10px; height: 10px; border-radius: 50%; display: inline-block;
 }
 
+/* ── Advanced Visualizer ──────────────────────────────────────────────────── */
+.adv-controls {
+  display: flex; gap: 10px; align-items: center;
+  flex-wrap: wrap; justify-content: center; margin-bottom: 10px;
+}
+.adv-controls label { font-size: .85rem; color: #8a90a8; }
+.adv-controls input[type="number"] {
+  padding: 7px 10px; border: 1px solid #2a3050; border-radius: 6px;
+  background: #141828; color: #e0e4f0; font-size: .9rem;
+  font-family: 'Consolas', monospace; width: 160px;
+}
+.adv-controls input:focus { outline: none; border-color: #5078c0; }
+
+.adv-playback-bar {
+  display: flex; gap: 8px; align-items: center;
+  width: 100%; margin-bottom: 6px; padding: 6px 0;
+}
+
+.adv-canvas-wrap {
+  position: relative; overflow: hidden; background: #050a10;
+  width: 100vw; margin-left: -16px;
+}
+.adv-canvas-wrap canvas {
+  display: block; width: 100%; height: 700px;
+}
+
 /* ── Scanner panel ────────────────────────────────────────────────────────── */
 
 /* top row: seed range, outcome, buttons */
@@ -193,10 +219,10 @@ canvas { display: block; width: 100%; }
 /* filter grid: 5-col grid (label + 4 properties), rows for min/max */
 .filter-grid {
   display: grid;
-  grid-template-columns: auto repeat(5, 1fr);
+  grid-template-columns: auto repeat(10, 1fr);
   gap: 4px 8px;
   margin-bottom: 14px;
-  max-width: 660px;
+  max-width: 100%;
   width: 100%;
 }
 .fg-corner { }
@@ -265,6 +291,7 @@ canvas { display: block; width: 100%; }
 <!-- ── Tabs ────────────────────────────────────────────────────────────────── -->
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="tab-visualizer">Visualizer</button>
+  <button class="tab-btn" data-tab="tab-advanced">Advanced View</button>
   <button class="tab-btn" data-tab="tab-scanner">Seed Scanner</button>
 </div>
 
@@ -300,7 +327,34 @@ canvas { display: block; width: 100%; }
   <div class="legend" id="legend"></div>
 </div>
 
-<!-- ── Tab 2: Seed Scanner ────────────────────────────────────────────────── -->
+<!-- ── Tab 2: Advanced Visualizer ─────────────────────────────────────────── -->
+<div id="tab-advanced" class="tab-panel">
+  <div class="adv-controls">
+    <label for="adv-seed-input">Seed:</label>
+    <input type="number" id="adv-seed-input" placeholder="leave empty for random">
+    <button class="btn-primary" id="adv-btn-run">Simulate</button>
+  </div>
+
+  <div class="adv-playback-bar">
+    <button class="btn-play" id="adv-btn-play" title="Play / Pause">&#9654;</button>
+    <label class="speed-label" for="adv-speed-select">Speed</label>
+    <select id="adv-speed-select">
+      <option value="0.25">0.25x</option>
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+      <option value="5">5x</option>
+      <option value="10">10x</option>
+      <option value="20">20x</option>
+    </select>
+    <input type="range" id="adv-scrubber" min="0" max="1" value="0" step="1" class="scrubber">
+    <span class="frame-counter" id="adv-frame-counter">0 / 0</span>
+  </div>
+
+  <div class="adv-canvas-wrap"><canvas id="adv-canvas"></canvas></div>
+</div>
+
+<!-- ── Tab 3: Seed Scanner ────────────────────────────────────────────────── -->
 <div id="tab-scanner" class="tab-panel">
 
   <!-- seed range + outcome + actions -->
@@ -338,6 +392,11 @@ canvas { display: block; width: 100%; }
     <div class="fg-header">Distance</div>
     <div class="fg-header">Ticks</div>
     <div class="fg-header">Hits/Tick</div>
+    <div class="fg-header">Bonuses</div>
+    <div class="fg-header">Positive Bonuses</div>
+    <div class="fg-header">Negative Bonuses</div>
+    <div class="fg-header">Shots from Scorer</div>
+    <div class="fg-header">Shots from Shooter</div>
 
     <div class="fg-row-label">Min</div>
     <div class="fg-cell"><input type="number" id="f-min-hits" placeholder="—"></div>
@@ -345,6 +404,11 @@ canvas { display: block; width: 100%; }
     <div class="fg-cell"><input type="number" id="f-min-dist" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-ticks" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-hpt" placeholder="—" step="any"></div>
+    <div class="fg-cell"><input type="number" id="f-min-bonuses" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-pos-bonuses" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-neg-bonuses" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-scorer-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-shots" placeholder="—"></div>
 
     <div class="fg-row-label">Max</div>
     <div class="fg-cell"><input type="number" id="f-max-hits" placeholder="—"></div>
@@ -352,6 +416,11 @@ canvas { display: block; width: 100%; }
     <div class="fg-cell"><input type="number" id="f-max-dist" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-ticks" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-hpt" placeholder="—" step="any"></div>
+    <div class="fg-cell"><input type="number" id="f-max-bonuses" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-pos-bonuses" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-neg-bonuses" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-scorer-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-shots" placeholder="—"></div>
   </div>
 
   <div class="scanner-status" id="scan-status"></div>
@@ -499,34 +568,90 @@ function render(result, canvas, { frame = -1, bounds = null } = {}) {
     const mk = item.marker;
 
     if (mk?.shape === 'rect') {
-      const h = mk.height ?? 30;
+      const wH = mk.worldHeight;
+      let rectTop, rectH;
+      if (wH != null) {
+        rectTop = sy(wH);
+        rectH = sy(0) - rectTop;
+      } else {
+        const h = mk.height ?? 30;
+        rectTop = y - h;
+        rectH = h;
+      }
       ctx.globalAlpha = mk.opacity ?? 0.7;
       ctx.fillStyle = mk.color ?? '#fff';
-      ctx.fillRect(x - 2, y - h, 4, h);
+      ctx.fillRect(x - 3, rectTop, 6, rectH);
       ctx.globalAlpha = 1;
       return;
     }
 
-    const isHarm = item.isRocket || item.label === 'x0.5';
-    ctx.globalAlpha = mk?.opacity ?? 0.25;
-    ctx.fillStyle = mk?.color ?? (isHarm ? '#e05858' : '#6080a0');
-    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+    if (mk?.shape === 'capsule') {
+      const wH   = mk.worldHeight ?? 1000;
+      const base = mk.baseHeight ?? 0;
+      const topPx = sy(base + wH);
+      const botPx = sy(base);
+      const bodyH = Math.max(4, botPx - topPx);
 
-    if (mk?.outline) {
-      ctx.strokeStyle = mk.outline;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.stroke();
+      // horizontal extent (world-unit width or fallback to pixel heuristic)
+      const pixW = mk.worldWidth != null
+        ? Math.max(4, Math.abs(sx(mk.worldWidth) - sx(0)))
+        : Math.max(6, bodyH * 0.24);
+      const halfW = pixW / 2;
+      const r = Math.min(halfW, bodyH / 2);
+
+      // team A → model left of coordinate, team B → right
+      let lx, rx;
+      if (mk.side === 'left')       { rx = x; lx = x - pixW; }
+      else if (mk.side === 'right') { lx = x; rx = x + pixW; }
+      else                          { lx = x - halfW; rx = x + halfW; }
+      const cx = (lx + rx) / 2;
+
+      ctx.globalAlpha = mk.opacity ?? 0.75;
+      ctx.fillStyle = mk.color ?? '#808080';
+      ctx.beginPath();
+      ctx.moveTo(lx, botPx - r);
+      ctx.lineTo(lx, topPx + r);
+      ctx.arc(cx, topPx + r, halfW, Math.PI, 0, false);
+      ctx.lineTo(rx, botPx - r);
+      ctx.arc(cx, botPx - r, halfW, 0, Math.PI, false);
+      ctx.closePath();
+      ctx.fill();
+
+      if (mk.outline) {
+        ctx.strokeStyle = mk.outline;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#8090b0'; ctx.font = 'bold 9px Consolas, monospace'; ctx.textAlign = 'center';
+      ctx.fillText(item.label, cx, topPx - 4);
+      return;
     }
 
-    ctx.fillStyle = '#8090b0'; ctx.font = 'bold 9px Consolas, monospace'; ctx.textAlign = 'center';
-    ctx.fillText(item.label, x, y - 12);
-    ctx.globalAlpha = 1;
+    const isHarm = item.isRocket || item.label === 'x0.5';
+
+    ctx.font = 'bold 11px Consolas, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(item.label).width;
+    const padX = 6, padY = 4;
+    const bw = tw + padX * 2, bh = 14 + padY * 2, br = 5;
+    const bx = x - bw / 2, by = y - bh / 2;
+
+    ctx.globalAlpha = mk?.opacity ?? 0.55;
+    ctx.fillStyle = '#1a1a6e';
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.fill();
+
+    ctx.globalAlpha = mk?.opacity ?? 0.9;
+    ctx.fillStyle = isHarm ? '#e05858' : '#ffffff';
+    ctx.fillText(item.label, x, y);
+    ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
   };
 
   for (const m of result.missed) drawDefaultDisc(m);
 
   for (const c of result.collected) {
-    const reached = drawAll || c.dist <= curDist;
+    const reached = drawAll || (c.frame != null ? c.frame <= lastIdx : c.dist <= curDist);
     if (!reached) {
       drawDefaultDisc(c);
       continue;
@@ -535,21 +660,29 @@ function render(result, canvas, { frame = -1, bounds = null } = {}) {
     const x = sx(c.dist), y = sy(c.alt);
     const isHarm = c.isRocket || c.label === 'x0.5';
 
+    ctx.font = 'bold 11px Consolas, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(c.label).width;
+    const padX = 6, padY = 4;
+    const bw = tw + padX * 2, bh = 14 + padY * 2, br = 5;
+    const bx = x - bw / 2, by = y - bh / 2;
+
     ctx.shadowColor = isHarm ? '#ff4040' : '#40ff80';
     ctx.shadowBlur = 10;
-    ctx.fillStyle = isHarm ? '#c03030' : c.label.startsWith('x') ? '#d0a020' : '#30a050';
-    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = isHarm ? '#3a1020' : '#1a1a6e';
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.fill();
     ctx.shadowBlur = 0;
 
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.stroke();
 
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Consolas, monospace'; ctx.textAlign = 'center';
-    ctx.fillText(c.label, x, y - 15);
+    ctx.fillStyle = isHarm ? '#ff6060' : '#ffffff';
+    ctx.fillText(c.label, x, y);
 
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = isHarm ? '#ff8080' : '#a0ffa0';
     ctx.font = '9px Consolas, monospace';
-    ctx.fillText(c.multAfter.toFixed(1) + '\u00d7', x, y + 22);
+    ctx.fillText(c.multAfter.toFixed(1) + '\u00d7', x, y + bh / 2 + 13);
   }
 
   // ── end marker (only when showing final frame) ──
@@ -567,20 +700,21 @@ function render(result, canvas, { frame = -1, bounds = null } = {}) {
     }
   }
 
-  // ── plane marker ──
+  // ── ball marker ──
   const cur = result.path[lastIdx];
   if (cur) {
     const px = sx(cur.dist), py = sy(cur.alt);
+    const br = 5;
 
     if (!atEnd) {
       ctx.shadowColor = '#4090e0';
       ctx.shadowBlur = 14;
     }
 
-    ctx.fillStyle = '#4090e0';
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('\u{2708}', px + 2, py - 8);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(px, py, br, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#4090e0'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(px, py, br, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur = 0;
 
     if (!atEnd) {
@@ -595,6 +729,272 @@ function render(result, canvas, { frame = -1, bounds = null } = {}) {
 
   SharedRenderer.computeBounds = computeBounds;
   SharedRenderer.render = render;
+})();
+
+// ── js/shared/advancedRenderer.js ──
+const SharedAdvancedRenderer = {};
+(function() {
+const ADV_SCALE      = 10;
+const ADV_VIEWPORT_H = 700;
+const ADV_Y_MAX      = 6020;
+const ADV_FIELD_W    = 27100;
+
+const advImg   = {};
+let   advReady = false;
+
+function tryLoad(name) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      const fb = new Image();
+      fb.onload  = () => resolve(fb);
+      fb.onerror = () => resolve(null);
+      fb.src = '../assets/' + name;
+    };
+    img.src = 'assets/' + name;
+  });
+}
+
+async function loadAdvancedAssets() {
+  const [bg, pA, pB, ball, scorePanel] = await Promise.all([
+    tryLoad('BG.png'),
+    tryLoad('player_a.png'),
+    tryLoad('player_b.png'),
+    tryLoad('Ball.png'),
+    tryLoad('score_panel.png'),
+  ]);
+  advImg.bg         = bg;
+  advImg.playerA    = pA;
+  advImg.playerB    = pB;
+  advImg.ball       = ball;
+  advImg.scorePanel = scorePanel;
+  advReady          = true;
+}
+
+function w2x(wx, camL) { return (wx - camL) / ADV_SCALE; }
+function w2y(wy)       { return (ADV_Y_MAX - wy) / ADV_SCALE; }
+
+// ── Bonus / multiplier tag ──────────────────────────────────────────────────
+
+const HIGHLIGHT_DURATION = 40;
+
+function drawTag(ctx, x, y, label, isHarm, highlight) {
+  ctx.save();
+  ctx.font = 'bold 32px Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const tw = ctx.measureText(label).width;
+  const px = 12, py = 8;
+  const bw = tw + px * 2, bh = 36 + py * 2, br = 8;
+  const bx = x - bw / 2, by = y - bh / 2;
+
+  if (highlight) {
+    ctx.shadowColor = isHarm ? '#ff4040' : '#40ff80';
+    ctx.shadowBlur  = 14;
+  }
+  ctx.fillStyle = isHarm ? '#3a1020' : '#1a1a6e';
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  if (highlight) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth   = 2.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, br); ctx.stroke();
+  }
+
+  ctx.fillStyle = isHarm ? '#e05858' : '#ffffff';
+  ctx.fillText(label, x, y);
+  ctx.restore();
+}
+
+// ── Main render ─────────────────────────────────────────────────────────────
+
+function renderAdvanced(result, canvas, frame) {
+  if (!advReady) return;
+
+  const CW = canvas.parentElement?.clientWidth || window.innerWidth;
+  canvas.width  = CW;
+  canvas.height = ADV_VIEWPORT_H;
+  const ctx = canvas.getContext('2d');
+
+  const drawAll = frame < 0;
+  const lastIdx = drawAll
+    ? result.path.length - 1
+    : Math.min(frame, result.path.length - 1);
+
+  const bwx = result.path[lastIdx]?.dist ?? ADV_FIELD_W / 2;
+  const bwy = result.path[lastIdx]?.alt  ?? 0;
+
+  // ── Camera (centered on ball, clamped to field) ───────────────────────────
+  const viewW = CW * ADV_SCALE;
+  let camL = bwx - viewW / 2;
+  if (viewW >= ADV_FIELD_W) {
+    camL = (ADV_FIELD_W - viewW) / 2;
+  } else {
+    camL = Math.max(0, Math.min(ADV_FIELD_W - viewW, camL));
+  }
+
+  // ── Background ────────────────────────────────────────────────────────────
+  const fL = w2x(0, camL);
+  const fW = ADV_FIELD_W / ADV_SCALE;
+
+  if (advImg.bg) {
+    ctx.drawImage(advImg.bg, fL, 0, fW, ADV_VIEWPORT_H);
+  } else {
+    ctx.fillStyle = '#1a5c2a';
+    ctx.fillRect(fL, 0, fW, ADV_VIEWPORT_H);
+  }
+
+  // Dark fill outside the field
+  if (fL > 0) {
+    ctx.fillStyle = '#050a10';
+    ctx.fillRect(0, 0, fL, ADV_VIEWPORT_H);
+  }
+  const fR = fL + fW;
+  if (fR < CW) {
+    ctx.fillStyle = '#050a10';
+    ctx.fillRect(fR, 0, CW - fR, ADV_VIEWPORT_H);
+  }
+
+  // ── Ground line ───────────────────────────────────────────────────────────
+  const gY = w2y(0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(Math.max(0, fL), gY);
+  ctx.lineTo(Math.min(CW, fR), gY);
+  ctx.stroke();
+
+  // ── Goalposts ─────────────────────────────────────────────────────────────
+  for (const m of result.missed) {
+    if (m.marker?.shape !== 'rect') continue;
+    const px  = w2x(m.dist, camL);
+    const tY  = w2y(m.marker.worldHeight);
+    ctx.fillStyle   = '#ffffff';
+    ctx.globalAlpha = 0.7;
+    ctx.fillRect(px - 4, tY, 8, gY - tY);
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Players (sprites) ────────────────────────────────────────────────────
+  for (const m of result.missed) {
+    if (m.marker?.shape !== 'capsule') continue;
+
+    const isA = m.marker.color === '#e05858';
+    const img = isA ? advImg.playerA : advImg.playerB;
+    if (!img) continue;
+
+    const bH  = m.marker.baseHeight   ?? 0;
+    const wH  = m.marker.worldHeight  ?? 1350;
+    const tY  = w2y(bH + wH);
+    const bY  = w2y(bH);
+    const sH  = bY - tY;
+    const sW  = sH * (img.naturalWidth / img.naturalHeight);
+    const px  = w2x(m.dist, camL);
+
+    const side = m.marker.side;
+    const drawX = side === 'left' ? px - sW : side === 'right' ? px : px - sW / 2;
+    ctx.drawImage(img, drawX, tY, sW, sH);
+  }
+
+  // ── Missed bonuses ────────────────────────────────────────────────────────
+  for (const m of result.missed) {
+    if (m.marker || !m.label) continue;
+    drawTag(ctx, w2x(m.dist, camL), w2y(m.alt), m.label, m.isRocket, false);
+  }
+
+  // ── Collected bonuses ─────────────────────────────────────────────────────
+  for (const c of result.collected) {
+    const hit = drawAll || (c.frame != null ? c.frame <= lastIdx : false);
+    const recentHit = hit && !drawAll && c.frame != null
+      && (lastIdx - c.frame) < HIGHLIGHT_DURATION;
+    drawTag(ctx, w2x(c.dist, camL), w2y(c.alt), c.label, c.isRocket, recentHit);
+  }
+
+  // ── Ball (with motion trail at high speeds) ────────────────────────────────
+  const bpx = w2x(bwx, camL);
+  const bpy = w2y(bwy);
+  const br  = 520 / ADV_SCALE / 2;
+
+  const TRAIL_COUNT = 6;
+  const TRAIL_MIN_SPEED = 30;
+  if (!drawAll && lastIdx >= 1) {
+    const prev = result.path[Math.max(0, lastIdx - 1)];
+    const dx = bwx - prev.dist;
+    const dy = (result.path[lastIdx]?.alt ?? 0) - prev.alt;
+    const speed = Math.sqrt(dx * dx + dy * dy);
+
+    if (speed > TRAIL_MIN_SPEED) {
+      const lookback = Math.min(lastIdx, TRAIL_COUNT);
+      for (let t = lookback; t >= 1; t--) {
+        const tp = result.path[lastIdx - t];
+        const tx = w2x(tp.dist, camL);
+        const ty = w2y(tp.alt);
+        const alpha = (1 - t / (lookback + 1)) * 0.4;
+        const scale = (1 - t / (lookback + 1)) * 0.7 + 0.3;
+        const r = br * scale;
+        ctx.globalAlpha = alpha;
+        if (advImg.ball) {
+          ctx.drawImage(advImg.ball, tx - r, ty - r, r * 2, r * 2);
+        } else {
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(tx, ty, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  if (advImg.ball) {
+    ctx.drawImage(advImg.ball, bpx - br, bpy - br, br * 2, br * 2);
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(bpx, bpy, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── Score panel (fixed to viewport top-center) ─────────────────────────────
+  const mult = result.path[lastIdx]?.mult ?? 1;
+  if (advImg.scorePanel) {
+    const panelW = 200;
+    const panelH = panelW * (advImg.scorePanel.naturalHeight / advImg.scorePanel.naturalWidth);
+    const panelX = (CW - panelW) / 2;
+    const panelY = -2;
+    ctx.drawImage(advImg.scorePanel, panelX, panelY, panelW, panelH);
+
+    const textY = panelY + panelH * 0.62;
+    ctx.font      = 'bold 20px Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const atEnd = drawAll || lastIdx >= result.path.length - 1;
+    ctx.fillStyle = atEnd ? (result.landed ? '#5cdb6a' : '#e05858') : '#ffffff';
+    ctx.fillText('x' + mult.toFixed(2), CW / 2, textY);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // ── End marker ────────────────────────────────────────────────────────────
+  const atEnd2 = drawAll || lastIdx >= result.path.length - 1;
+  if (atEnd2) {
+    const lastP = result.path[result.path.length - 1];
+    const lx = w2x(lastP.dist, camL);
+    const ly = w2y(lastP.alt);
+    if (result.landed) {
+      ctx.font = '28px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('\u26BD', lx, ly - 20);
+    } else {
+      ctx.font = '24px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('\u{1F4A5}', lx, ly - 10);
+    }
+  }
+}
+
+  SharedAdvancedRenderer.loadAdvancedAssets = loadAdvancedAssets;
+  SharedAdvancedRenderer.renderAdvanced = renderAdvanced;
 })();
 
 // ── js/shared/scanner.js ──
@@ -612,6 +1012,16 @@ function passesFilters(s, filters) {
   if (filters.maxTicks      != null && s.ticks            > filters.maxTicks)      return false;
   if (filters.minHpt        != null && s.hitsPerTick      < filters.minHpt)       return false;
   if (filters.maxHpt        != null && s.hitsPerTick      > filters.maxHpt)       return false;
+  if (filters.minBonuses     != null && s.bonusesCollected  < filters.minBonuses)     return false;
+  if (filters.maxBonuses     != null && s.bonusesCollected  > filters.maxBonuses)     return false;
+  if (filters.minPosBonuses  != null && s.positiveBonuses   < filters.minPosBonuses)  return false;
+  if (filters.maxPosBonuses  != null && s.positiveBonuses   > filters.maxPosBonuses)  return false;
+  if (filters.minNegBonuses  != null && s.negativeBonuses   < filters.minNegBonuses)  return false;
+  if (filters.maxNegBonuses  != null && s.negativeBonuses   > filters.maxNegBonuses)  return false;
+  if (filters.minScorerShots != null && s.scorerShots      < filters.minScorerShots) return false;
+  if (filters.maxScorerShots != null && s.scorerShots      > filters.maxScorerShots) return false;
+  if (filters.minShots      != null && s.shots            < filters.minShots)     return false;
+  if (filters.maxShots      != null && s.shots            > filters.maxShots)     return false;
   return true;
 }
 
@@ -738,6 +1148,11 @@ function renderResultsTable(results, container) {
     { key: 'peakAltitude',    label: 'Peak Alt',   align: 'num-right' },
     { key: 'ticks',           label: 'Ticks',      align: 'num-right' },
     { key: 'hitsPerTick',     label: 'Hits/Tick',  align: 'num-right' },
+    { key: 'bonusesCollected', label: 'Bonuses',            align: 'num-right' },
+    { key: 'positiveBonuses', label: 'Positive Bonuses',    align: 'num-right' },
+    { key: 'negativeBonuses', label: 'Negative Bonuses',   align: 'num-right' },
+    { key: 'scorerShots',     label: 'Shots from Scorer',  align: 'num-right' },
+    { key: 'shots',           label: 'Shots from Shooter', align: 'num-right' },
   ];
 
   let sortCol = 'seed';
@@ -820,28 +1235,49 @@ const GameFifaMasters = {};
 const { FlightRandom } = SharedPrng;
 
 const gameInfo = {
-  id:   'fifa-masters',
+  id: 'fifa-masters',
   name: 'FIFA Masters',
 };
 
 // ─── Field constants ────────────────────────────────────────────────────────
-const FIELD_WIDTH      = 20000;
-const BONUS_COUNT      = 40;
-const BONUS_HIT_R2     = 150 * 150;
-const MAX_MULT         = 1000;
-const TICK_LIMIT       = 50000;
+const FIELD_WIDTH = 27100;
+const BONUS_NEGATIVE_PER_SIDE = 5;
+const BONUS_POSITIVE_PER_SIDE = 12;
+const BONUS_HIT_R2 = 150 * 150;
+const MAX_MULT = 500;
+const TICK_LIMIT = 20000;
 
-// Arc height is controlled by initial vy (integer).
-// Peak height = V*(V+1)/2, flight time = 2*V+1 ticks.
-// V ∈ [28, 70) → peak ≈ 406–2485, flight ≈ 57–139 ticks.
-const ARC_V_MIN        = 28;
-const ARC_V_RANGE      = 42;
+// LAYOUT — all values relative to center (0,0); y = 0 is ground / bottom of goalpost.
+const GOAL_POST_POSITION       = 12160;
+const MAX_MULTIPLIER_HEIGHT    = 4100;
+const MIN_MULTIPLIER_HEIGHT    = 2450;
+const GOALPOST_HEIGHT          = 2230;
+const PLAYER_MODEL_HEIGHT      = 1350;
+const PLAYER_MODEL_WIDTH       = 770;
+const PLAYER_BASE_HEIGHT       = 240;
+const BALL_MODEL_DIAMETER      = 520;
+const PLAYER_POINT_LOW_HEIGHT  = 790;
+const PLAYER_POINT_HIGH_HEIGHT = 1950;
+
+const CENTER_X = FIELD_WIDTH / 2;
+const GOAL_A_X = CENTER_X - GOAL_POST_POSITION;
+const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
+
+// Arc peak is randomised directly (not vy).
+// Range [ARC_PEAK_MIN, ARC_PEAK_MAX), capped at 2500 + dx so short shots stay low.
+const ARC_PEAK_MIN = 2500;
+const ARC_PEAK_MAX = 5000;
+const MAX_BALL_VX  = 130;
 
 // Goalpost targeting weight = proximity^POW * SCALE.
 // Tuned so the most-forward attacker (~81% proximity) gets ~90% goalpost chance.
-const GOAL_W_POW       = 6;
-const GOAL_W_SCALE     = 96;
-const W_PRECISION      = 10000;
+const GOAL_W_POW = 6;
+const GOAL_W_SCALE = 96;
+const W_PRECISION = 10000;
+const LONG_SHOT_THRESHOLD = 7000;
+
+// Players too close for a direct pass (0-based indices).
+const CLOSE_PAIRS = new Map([[2, 3], [3, 2], [8, 9], [9, 8]]);
 
 // ─── Segment-to-point distance (for bonus collision) ────────────────────────
 function segDistSq(ax, ay, bx, by, px, py) {
@@ -854,31 +1290,36 @@ function segDistSq(ax, ay, bx, by, px, py) {
 }
 
 // ─── Player arrangement ─────────────────────────────────────────────────────
-// KA - 3A 1B 2A 1B 1A 1B 1A 1B 1A 1B 1A 2B 1A 3B - KB
-const TEAM_PATTERN = [
-  'A','A','A', 'B',
-  'A','A', 'B',
-  'A', 'B',
-  'A', 'B',
-  'A', 'B',
-  'A', 'B',
-  'B', 'A',
-  'B','B','B',
+// KA - 1A 1B 1A 2B 1A 1B 2A 1B 1A 1B - KB
+// Offsets are relative to center (0,0 = FIELD_WIDTH / 2).
+const PLAYER_LAYOUT = [
+  { team: 'A', offset: -9830 },
+  { team: 'B', offset: -8230 },
+  { team: 'A', offset: -5770 },
+  { team: 'B', offset: -5630 },
+  { team: 'B', offset: -3490 },
+  { team: 'A', offset: -940 },
+  { team: 'B', offset: 940 },
+  { team: 'A', offset: 3940 },
+  { team: 'A', offset: 5630 },
+  { team: 'B', offset: 5770 },
+  { team: 'A', offset: 8230 },
+  { team: 'B', offset: 9830 },
 ];
 
 function buildPlayers() {
-  const spacing = FIELD_WIDTH / (TEAM_PATTERN.length + 1);
-  return TEAM_PATTERN.map((team, i) => ({
-    x: Math.round(spacing * (i + 1)),
+  const center = FIELD_WIDTH / 2;
+  return PLAYER_LAYOUT.map(({ team, offset }) => ({
+    x: Math.round(center + offset),
     team,
   }));
 }
 
-function findCenterTeamA(players) {
+function findCenterPlayer(players, team) {
   const center = FIELD_WIDTH / 2;
   let best = -1, bestD = Infinity;
   for (let i = 0; i < players.length; i++) {
-    if (players[i].team !== 'A') continue;
+    if (players[i].team !== team) continue;
     const d = Math.abs(players[i].x - center);
     if (d < bestD) { bestD = d; best = i; }
   }
@@ -886,54 +1327,88 @@ function findCenterTeamA(players) {
 }
 
 // ─── Bonus generation ───────────────────────────────────────────────────────
-const BONUS_TYPES = [
-  { add: 1,  mult: 1   },
-  { add: 1,  mult: 1   },
-  { add: 1,  mult: 1   },
-  { add: 2,  mult: 1   },
-  { add: 2,  mult: 1   },
-  { add: 5,  mult: 1   },
-  { add: 10, mult: 1   },
-  { add: 0,  mult: 2   },
-  { add: 0,  mult: 3   },
-  { add: 0,  mult: 0.5 },
-  { add: 0,  mult: 0.5 },
+const BONUS_POSITIVE_TYPES = [
+  { add: 1, mult: 1 },
+  { add: 1, mult: 1 },
+  { add: 1, mult: 1 },
+  { add: 2, mult: 1 },
+  { add: 2, mult: 1 },
+  { add: 5, mult: 1 },
+  { add: 10, mult: 1 },
+  { add: 0, mult: 2 },
+  { add: 0, mult: 3 },
 ];
+const BONUS_NEGATIVE_TYPE = { add: 0, mult: 0.5 };
 
 function bonusLabel(b) {
   return b.add ? `+${b.add}` : `x${b.mult}`;
 }
 
+const BONUS_MIN_DIST_SQ = 500 * 500;
+const BONUS_PLACE_TRIES = 50;
+
+function tooClose(placed, x, y) {
+  for (let j = 0; j < placed.length; j++) {
+    const dx = placed[j].x - x, dy = placed[j].y - y;
+    if (dx * dx + dy * dy < BONUS_MIN_DIST_SQ) return true;
+  }
+  return false;
+}
+
+function placePair(rng, out, t, hRange, halfW) {
+  let ox, y, lx, rx;
+  for (let attempt = 0; attempt < BONUS_PLACE_TRIES; attempt++) {
+    ox = rng.random(halfW - 1000) + 1000;
+    y  = rng.random(hRange) + MIN_MULTIPLIER_HEIGHT;
+    lx = GOAL_A_X + ox;
+    rx = GOAL_B_X - ox;
+    if (!tooClose(out, lx, y) && !tooClose(out, rx, y)) break;
+  }
+  out.push({ x: lx, y, add: t.add, mult: t.mult });
+  out.push({ x: rx, y, add: t.add, mult: t.mult });
+}
+
+function generateBonusPositions(rng) {
+  const hRange = MAX_MULTIPLIER_HEIGHT - MIN_MULTIPLIER_HEIGHT;
+  const halfW  = (GOAL_B_X - GOAL_A_X) / 2;
+  const out    = [];
+  for (let i = 0; i < BONUS_NEGATIVE_PER_SIDE; i++) {
+    placePair(rng, out, BONUS_NEGATIVE_TYPE, hRange, halfW);
+  }
+  for (let i = 0; i < BONUS_POSITIVE_PER_SIDE; i++) {
+    const t = BONUS_POSITIVE_TYPES[rng.random(BONUS_POSITIVE_TYPES.length)];
+    placePair(rng, out, t, hRange, halfW);
+  }
+  return out;
+}
+
 function generateBonuses(rng) {
-  return Array.from({ length: BONUS_COUNT }, () => {
-    const t = BONUS_TYPES[rng.random(BONUS_TYPES.length)];
-    return {
-      x: rng.random(FIELD_WIDTH - 2000) + 1000,
-      y: rng.random(2500) + 400,
-      add: t.add, mult: t.mult,
-      label: bonusLabel(t),
-      collected: false,
-    };
-  });
+  return generateBonusPositions(rng).map(b => ({
+    ...b, label: bonusLabel(b), collected: false,
+  }));
 }
 
 // ─── Target selection ───────────────────────────────────────────────────────
 // Pick a player in the kick direction or the goalpost.
 // Nearby players are weighted higher (1/rank).
 // Goalpost weight rises steeply with proximity (proximity^6 * 96).
+// Excluded: close-pair partner AND the player who just passed (no immediate return).
 
-function chooseTarget(rng, kickerX, kickRight, players) {
-  const goalX = kickRight ? FIELD_WIDTH : 0;
+function chooseTarget(rng, kickerX, kickRight, players, kickerIdx, prevIdx) {
+  const goalX = kickRight ? GOAL_B_X : GOAL_A_X;
+  const blocked = CLOSE_PAIRS.get(kickerIdx);
 
   const candidates = [];
   for (let i = 0; i < players.length; i++) {
+    if (i === blocked || i === prevIdx) continue;
     if (kickRight ? players[i].x > kickerX : players[i].x < kickerX) {
       candidates.push({ type: 'player', index: i, x: players[i].x });
     }
   }
   candidates.sort((a, b) => Math.abs(a.x - kickerX) - Math.abs(b.x - kickerX));
 
-  const proximity = 1 - Math.abs(goalX - kickerX) / FIELD_WIDTH;
+  const goalDist = GOAL_B_X - GOAL_A_X;
+  const proximity = 1 - Math.abs(goalX - kickerX) / goalDist;
   const goalW = Math.max(0.1, Math.pow(proximity, GOAL_W_POW) * GOAL_W_SCALE);
 
   let totalW = goalW;
@@ -953,14 +1428,80 @@ function chooseTarget(rng, kickerX, kickRight, players) {
 }
 
 // ─── Arc computation ────────────────────────────────────────────────────────
-// Given integer V (initial vy), the ball peaks at V*(V+1)/2 and
-// returns to y=0 after exactly T = 2*V+1 ticks.
-// vx is computed so the ball lands exactly at targetX.
+// y(t) = fromY + V*t − t(t−1)/2.  Peak = fromY + V(V+1)/2.
+// Solving y(T) = targetY → T = [(2V+1) + sqrt((2V+1)² − 8·dy)] / 2.
 
-function computeArc(fromX, targetX, V) {
-  const T = 2 * V + 1;
+function vFromPeak(peak, fromY) {
+  const rel = peak - fromY;
+  return Math.max(1, Math.round((-1 + Math.sqrt(1 + 8 * rel)) / 2));
+}
+
+function minPeakForSpeed(fromX, fromY, targetX, targetY) {
+  const absDx = Math.abs(targetX - fromX);
+  if (absDx === 0) return 0;
+  const dy = targetY - fromY;
+  let Tmin = Math.ceil(absDx / MAX_BALL_VX);
+  if (dy > 0 && Tmin * Tmin <= 2 * dy) {
+    Tmin = Math.ceil(Math.sqrt(2 * dy)) + 1;
+  }
+  const V = Math.max(1, Math.ceil((Tmin + 2 * dy / Tmin - 1) / 2));
+  return fromY + V * (V + 1) / 2;
+}
+
+function computeArc(fromX, fromY, targetX, targetY, V) {
+  const dy = targetY - fromY;
+  const d = 2 * V + 1;
+  const disc = d * d - 8 * dy;
+  const T = Math.max(1, Math.round((d + Math.sqrt(Math.max(0, disc))) / 2));
   const vx = (targetX - fromX) / T;
   return { vx, vy: V, T };
+}
+
+// ─── Travel-list builder ─────────────────────────────────────────────────────
+// Phase 1: decide WHO receives the ball in what order (consumes target-selection
+// RNG).  Phase 2 (in simulate / simulateSummary) randomises arc heights.
+
+function buildTravelList(rng, players, startIdx) {
+  const targets = [];
+  let curX = players[startIdx].x;
+  let curIdx = startIdx;
+  const otherCenter = findCenterPlayer(players, players[startIdx].team === 'A' ? 'B' : 'A');
+  let prevIdx = otherCenter;
+  for (let i = 0; i < 200; i++) {
+    const kickRight = players[curIdx].team === 'A';
+    const target = chooseTarget(rng, curX, kickRight, players, curIdx, prevIdx);
+    targets.push(target);
+    if (target.type === 'goal') break;
+    prevIdx = curIdx;
+    curX = target.x;
+    curIdx = target.index;
+  }
+  return targets;
+}
+
+// Build the full stop list (start player + travel targets) and assign each
+// player stop a y-height.  The ball is received AND shot from this exact point.
+// Rule: outgoing x-distance > LONG_SHOT_THRESHOLD → LOW, otherwise → HIGH.
+// Goal shots arrive at the goalkeeper's LOW receive height.
+
+function buildStops(players, startIdx, targets) {
+  const stops = [
+    { type: 'player', index: startIdx, x: players[startIdx].x },
+    ...targets,
+  ];
+  for (let i = 0; i < stops.length; i++) {
+    if (stops[i].type === 'goal') {
+      stops[i].y = PLAYER_POINT_LOW_HEIGHT;
+    } else if (i === 0) {
+      stops[i].y = PLAYER_POINT_LOW_HEIGHT;
+    } else {
+      const dx = Math.abs(stops[i + 1].x - stops[i].x);
+      stops[i].y = dx > LONG_SHOT_THRESHOLD
+        ? PLAYER_POINT_LOW_HEIGHT
+        : PLAYER_POINT_HIGH_HEIGHT;
+    }
+  }
+  return stops;
 }
 
 // ─── Full simulation with recording ─────────────────────────────────────────
@@ -969,15 +1510,23 @@ function simulate(seed) {
   const rng = new FlightRandom();
   rng.seed(seed);
 
-  const players  = buildPlayers();
-  const startIdx = findCenterTeamA(players);
-  const bonuses  = generateBonuses(rng);
+  const players   = buildPlayers();
+  const startTeam = rng.random(2) === 0 ? 'A' : 'B';
+  const startIdx  = findCenterPlayer(players, startTeam);
+  const bonuses   = generateBonuses(rng);
 
-  let ballX = players[startIdx].x;
-  let ballY = 0;
+  // Phase 1 — travel list (target-selection RNG)
+  const targets  = buildTravelList(rng, players, startIdx);
+  const isGoal   = rng.random(2) === 0;
+  const stops    = buildStops(players, startIdx, targets);
+  const lastStop = stops[stops.length - 1];
+  // Goal A: saved = cashout, goal = crash.  Goal B: goal = cashout, saved = crash.
+  const landed   = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
+
+  // Phase 2 — simulate arcs (arc-height RNG)
+  let ballX = stops[0].x;
+  let ballY = stops[0].y;
   let mult     = 1;
-  let finished = false;
-  let isGoal   = false;
   let totalDist = 0;
   let peakAlt   = 0;
 
@@ -985,6 +1534,8 @@ function simulate(seed) {
   const collected = [];
   const events    = [];
   let prevMult    = 1;
+  let posHits     = 0;
+  let negHits     = 0;
 
   const pushEv = (label, m) => {
     events.push({ label, mult: m, isLoss: prevMult > m });
@@ -993,16 +1544,22 @@ function simulate(seed) {
   pushEv('kickoff', 1);
 
   let ticks = 0;
+  let lastShotStartFrame = 0;
+  let lastShotPeakFrame  = 0;
+  let lastShotPeakAlt    = -Infinity;
 
-  while (!finished && ticks < TICK_LIMIT) {
-    // current player determines kick direction
-    const kickRight = ticks === 0
-      ? true
-      : players.find(p => p.x === ballX)?.team === 'A';
+  for (let s = 0; s < stops.length - 1 && ticks < TICK_LIMIT; s++) {
+    const isLastShot = s === stops.length - 2;
+    if (isLastShot) lastShotStartFrame = path.length;
 
-    const target = chooseTarget(rng, ballX, kickRight, players);
-    const V = ARC_V_MIN + rng.random(ARC_V_RANGE);
-    const { vx, vy: initVy, T } = computeArc(ballX, target.x, V);
+    const to       = stops[s + 1];
+    const dx       = Math.abs(to.x - ballX);
+    const sPeak    = minPeakForSpeed(ballX, ballY, to.x, to.y);
+    const pMin     = Math.max(ARC_PEAK_MIN, Math.ceil(sPeak));
+    const pMax     = Math.max(pMin, Math.min(ARC_PEAK_MAX, 2500 + dx));
+    const peak     = pMin + rng.random(Math.max(1, pMax - pMin));
+    const V        = vFromPeak(peak, ballY);
+    const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
 
     let vy = initVy;
     for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
@@ -1015,10 +1572,16 @@ function simulate(seed) {
 
       if (ballY > peakAlt) peakAlt = ballY;
 
+      if (isLastShot && ballY > lastShotPeakAlt) {
+        lastShotPeakAlt = ballY;
+        lastShotPeakFrame = path.length;
+      }
+
       for (const b of bonuses) {
         if (b.collected) continue;
         if (segDistSq(prevBX, prevBY, ballX, ballY, b.x, b.y) > BONUS_HIT_R2) continue;
         b.collected = true;
+        if (b.mult < 1) negHits++; else posHits++;
         if (b.add)       mult += b.add;
         if (b.mult !== 1) mult *= b.mult;
         mult = Math.min(MAX_MULT, Math.max(0, mult));
@@ -1026,6 +1589,7 @@ function simulate(seed) {
           dist: b.x, alt: b.y, label: b.label,
           isRocket: b.mult < 1,
           multBefore: prevMult, multAfter: mult,
+          frame: path.length,
         });
         pushEv(b.label, mult);
       }
@@ -1033,16 +1597,12 @@ function simulate(seed) {
       path.push({ dist: ballX, alt: Math.max(0, ballY), mult });
     }
 
-    // snap to exact target
-    ballX = target.x;
-    ballY = 0;
-
-    if (target.type === 'goal') {
-      isGoal   = rng.random(2) === 0;
-      finished = true;
-      pushEv(isGoal ? 'goal' : 'saved', isGoal ? mult : 0);
-    }
+    // snap to exact receive/shoot point
+    ballX = to.x;
+    ballY = to.y;
   }
+
+  pushEv(isGoal ? 'goal' : 'saved', landed ? mult : 0);
 
   // uncollected bonuses + field markers → missed
   const missed = [];
@@ -1051,29 +1611,66 @@ function simulate(seed) {
       missed.push({ dist: b.x, alt: b.y, label: b.label, isRocket: b.mult < 1 });
     }
   }
-  // goalposts (white rectangles, drawn first so players render on top)
-  missed.push({ dist: 0, alt: 0, label: '', isRocket: false,
-    marker: { shape: 'rect', color: '#ffffff', opacity: 0.6, height: 34 } });
-  missed.push({ dist: FIELD_WIDTH, alt: 0, label: '', isRocket: false,
-    marker: { shape: 'rect', color: '#ffffff', opacity: 0.6, height: 34 } });
-  // field players (team-colored)
+  // goalposts
+  missed.push({
+    dist: GOAL_A_X, alt: 0, label: '', isRocket: false,
+    marker: { shape: 'rect', color: '#ffffff', opacity: 0.6, worldHeight: GOALPOST_HEIGHT }
+  });
+  missed.push({
+    dist: GOAL_B_X, alt: 0, label: '', isRocket: false,
+    marker: { shape: 'rect', color: '#ffffff', opacity: 0.6, worldHeight: GOALPOST_HEIGHT }
+  });
+  // field players (capsules — team A left of x, team B right of x)
   for (const p of players) {
-    missed.push({ dist: p.x, alt: 0, label: p.team, isRocket: false,
-      marker: { color: p.team === 'A' ? '#e05858' : '#4088e0', opacity: 0.75 } });
+    missed.push({
+      dist: p.x, alt: 0, label: p.team, isRocket: false,
+      marker: {
+        shape: 'capsule', color: p.team === 'A' ? '#e05858' : '#4088e0',
+        opacity: 0.75, worldHeight: PLAYER_MODEL_HEIGHT,
+        worldWidth: PLAYER_MODEL_WIDTH, baseHeight: PLAYER_BASE_HEIGHT,
+        side: p.team === 'A' ? 'left' : 'right',
+      }
+    });
   }
-  // goalkeepers (team-colored with white outline)
-  missed.push({ dist: 0, alt: 0, label: 'GK', isRocket: false,
-    marker: { color: '#e05858', outline: '#fff', opacity: 0.85 } });
-  missed.push({ dist: FIELD_WIDTH, alt: 0, label: 'GK', isRocket: false,
-    marker: { color: '#4088e0', outline: '#fff', opacity: 0.85 } });
+  // goalkeepers (centered on the goalpost)
+  missed.push({
+    dist: GOAL_A_X, alt: 0, label: 'GK', isRocket: false,
+    marker: {
+      shape: 'capsule', color: '#e05858', outline: '#fff',
+      opacity: 0.85, worldHeight: PLAYER_MODEL_HEIGHT,
+      worldWidth: PLAYER_MODEL_WIDTH, baseHeight: PLAYER_BASE_HEIGHT,
+    }
+  });
+  missed.push({
+    dist: GOAL_B_X, alt: 0, label: 'GK', isRocket: false,
+    marker: {
+      shape: 'capsule', color: '#4088e0', outline: '#fff',
+      opacity: 0.85, worldHeight: PLAYER_MODEL_HEIGHT,
+      worldWidth: PLAYER_MODEL_WIDTH, baseHeight: PLAYER_BASE_HEIGHT,
+    }
+  });
+
+  const shotCounts = new Map();
+  for (const s of stops) {
+    if (s.type === 'player') shotCounts.set(s.index, (shotCounts.get(s.index) || 0) + 1);
+  }
+  const scorerIdx = stops.length >= 2 ? stops[stops.length - 2].index : -1;
 
   return {
     seed, path, collected, missed, events,
-    landed: isGoal,
-    totalMult: isGoal ? mult : 0,
+    landed,
+    totalMult: landed ? mult : 0,
     ticks,
     shipDist: totalDist,
     peakAlt,
+    bonusesCollected: posHits + negHits,
+    positiveBonuses: posHits,
+    negativeBonuses: negHits,
+    scorerShots: shotCounts.get(scorerIdx) || 0,
+    shots: Math.max(0, ...shotCounts.values()),
+    lastShotStartFrame,
+    lastShotPeakFrame,
+    lastShotGoalX: lastStop.x,
   };
 }
 
@@ -1083,38 +1680,42 @@ function simulateSummary(seed) {
   const rng = new FlightRandom();
   rng.seed(seed);
 
-  const players  = buildPlayers();
-  const startIdx = findCenterTeamA(players);
+  const players   = buildPlayers();
+  const startTeam = rng.random(2) === 0 ? 'A' : 'B';
+  const startIdx  = findCenterPlayer(players, startTeam);
 
-  const bonuses = [];
-  for (let i = 0; i < BONUS_COUNT; i++) {
-    const t = BONUS_TYPES[rng.random(BONUS_TYPES.length)];
-    bonuses.push({
-      x: rng.random(FIELD_WIDTH - 2000) + 1000,
-      y: rng.random(2500) + 400,
-      add: t.add, mult: t.mult, collected: false,
-    });
-  }
+  const bonuses = generateBonusPositions(rng).map(b => ({
+    ...b, collected: false,
+  }));
 
-  let ballX = players[startIdx].x;
-  let ballY = 0;
+  // Phase 1 — travel list
+  const targets  = buildTravelList(rng, players, startIdx);
+  const isGoal   = rng.random(2) === 0;
+  const stops    = buildStops(players, startIdx, targets);
+  const lastStop = stops[stops.length - 1];
+  const landed   = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
+
+  // Phase 2 — arcs
+  let ballX = stops[0].x;
+  let ballY = stops[0].y;
   let mult      = 1;
   let hits      = 0;
+  let posHits   = 0;
+  let negHits   = 0;
   let peakAlt   = 0;
   let totalDist = 0;
-  let finished  = false;
-  let isGoal    = false;
 
   let ticks = 0;
 
-  while (!finished && ticks < TICK_LIMIT) {
-    const kickRight = ticks === 0
-      ? true
-      : players.find(p => p.x === ballX)?.team === 'A';
-
-    const target = chooseTarget(rng, ballX, kickRight, players);
-    const V = ARC_V_MIN + rng.random(ARC_V_RANGE);
-    const { vx, vy: initVy, T } = computeArc(ballX, target.x, V);
+  for (let s = 0; s < stops.length - 1 && ticks < TICK_LIMIT; s++) {
+    const to       = stops[s + 1];
+    const dx       = Math.abs(to.x - ballX);
+    const sPeak    = minPeakForSpeed(ballX, ballY, to.x, to.y);
+    const pMin     = Math.max(ARC_PEAK_MIN, Math.ceil(sPeak));
+    const pMax     = Math.max(pMin, Math.min(ARC_PEAK_MAX, 2500 + dx));
+    const peak     = pMin + rng.random(Math.max(1, pMax - pMin));
+    const V        = vFromPeak(peak, ballY);
+    const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
 
     let vy = initVy;
     for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
@@ -1131,31 +1732,41 @@ function simulateSummary(seed) {
         if (segDistSq(prevBX, prevBY, ballX, ballY, b.x, b.y) > BONUS_HIT_R2) continue;
         b.collected = true;
         hits++;
+        if (b.mult < 1) negHits++; else posHits++;
         if (b.add)       mult += b.add;
         if (b.mult !== 1) mult *= b.mult;
         mult = Math.min(MAX_MULT, Math.max(0, mult));
       }
     }
 
-    ballX = target.x;
-    ballY = 0;
-
-    if (target.type === 'goal') {
-      isGoal   = rng.random(2) === 0;
-      finished = true;
-    }
+    ballX = to.x;
+    ballY = to.y;
   }
 
   return {
     seed,
     objectsHit:      hits,
     finalMultiplier:  mult,
-    totalMultiplier:  isGoal ? mult : 0,
-    outcome:          isGoal ? 'win' : 'crash',
+    totalMultiplier:  landed ? mult : 0,
+    outcome:          landed ? 'win' : 'crash',
     distance:         totalDist,
     peakAltitude:     peakAlt,
     ticks,
     hitsPerTick:      ticks > 0 ? hits / ticks : 0,
+    bonusesCollected: posHits + negHits,
+    positiveBonuses:  posHits,
+    negativeBonuses:  negHits,
+    ...(() => {
+      const sc = new Map();
+      for (const s of stops) {
+        if (s.type === 'player') sc.set(s.index, (sc.get(s.index) || 0) + 1);
+      }
+      const scorerIdx = stops.length >= 2 ? stops[stops.length - 2].index : -1;
+      return {
+        scorerShots: sc.get(scorerIdx) || 0,
+        shots: Math.max(0, ...sc.values()),
+      };
+    })(),
   };
 }
 
@@ -1190,6 +1801,7 @@ function getGame(id) {
 // ── js/app.js ──
 (function() {
 const { render, computeBounds } = SharedRenderer;
+const { loadAdvancedAssets, renderAdvanced } = SharedAdvancedRenderer;
 const { scanSeedsAsync } = SharedScanner;
 const { updateInfoBar, updateEventsStrip, updateLegend, renderResultsTable } = SharedUI;
 const { listGames, getGame } = GameRegistry;
@@ -1228,6 +1840,16 @@ const fMinTicks    = $('f-min-ticks');
 const fMaxTicks    = $('f-max-ticks');
 const fMinHpt      = $('f-min-hpt');
 const fMaxHpt      = $('f-max-hpt');
+const fMinBonuses     = $('f-min-bonuses');
+const fMaxBonuses     = $('f-max-bonuses');
+const fMinPosBonuses  = $('f-min-pos-bonuses');
+const fMaxPosBonuses  = $('f-max-pos-bonuses');
+const fMinNegBonuses  = $('f-min-neg-bonuses');
+const fMaxNegBonuses  = $('f-max-neg-bonuses');
+const fMinScorerShots = $('f-min-scorer-shots');
+const fMaxScorerShots = $('f-max-scorer-shots');
+const fMinShots    = $('f-min-shots');
+const fMaxShots    = $('f-max-shots');
 const btnScan      = $('btn-scan');
 const btnStopScan  = $('btn-stop-scan');
 const scanStatus   = $('scan-status');
@@ -1403,6 +2025,16 @@ function buildFilters() {
   f.maxTicks      = v(fMaxTicks);
   f.minHpt        = v(fMinHpt);
   f.maxHpt        = v(fMaxHpt);
+  f.minBonuses     = v(fMinBonuses);
+  f.maxBonuses     = v(fMaxBonuses);
+  f.minPosBonuses  = v(fMinPosBonuses);
+  f.maxPosBonuses  = v(fMaxPosBonuses);
+  f.minNegBonuses  = v(fMinNegBonuses);
+  f.maxNegBonuses  = v(fMaxNegBonuses);
+  f.minScorerShots = v(fMinScorerShots);
+  f.maxScorerShots = v(fMaxScorerShots);
+  f.minShots      = v(fMinShots);
+  f.maxShots      = v(fMaxShots);
   const oc = fOutcome.value;
   if (oc !== 'any') f.outcome = oc;
   return f;
@@ -1455,9 +2087,158 @@ async function runScan() {
 btnScan.addEventListener('click', runScan);
 btnStopScan.addEventListener('click', () => { if (scanAbort) scanAbort.abort(); });
 
-[scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt].forEach(el => {
+[scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt, fMinBonuses, fMaxBonuses, fMinPosBonuses, fMaxPosBonuses, fMinNegBonuses, fMaxNegBonuses, fMinScorerShots, fMaxScorerShots, fMinShots, fMaxShots].forEach(el => {
   el.addEventListener('keydown', e => { if (e.key === 'Enter') runScan(); });
 });
+
+// ─── Advanced Visualizer ─────────────────────────────────────────────────────
+const advSeedInput    = $('adv-seed-input');
+const advBtnRun       = $('adv-btn-run');
+const advBtnPlay      = $('adv-btn-play');
+const advSpeedSelect  = $('adv-speed-select');
+const advScrubber     = $('adv-scrubber');
+const advFrameCounter = $('adv-frame-counter');
+const advCanvas       = $('adv-canvas');
+
+let advResult  = null;
+let advFrame   = -1;
+let advPlaying = false;
+let advRafId   = null;
+let advAccum   = 0;
+let advLastTs  = null;
+
+function advTotal() { return advResult ? advResult.path.length : 0; }
+function advSpeed() { return parseFloat(advSpeedSelect.value) || 1; }
+
+function advSync() {
+  const t = advTotal();
+  advScrubber.max   = Math.max(0, t - 1);
+  advScrubber.value = advFrame < 0 ? t - 1 : advFrame;
+  advFrameCounter.textContent = `${advFrame < 0 ? t : advFrame + 1} / ${t}`;
+}
+
+function advDraw() {
+  if (!advResult) return;
+  renderAdvanced(advResult, advCanvas, advFrame);
+}
+
+function advStop() {
+  advPlaying = false;
+  if (advRafId) { cancelAnimationFrame(advRafId); advRafId = null; }
+  advBtnPlay.textContent = '\u25b6';
+  advBtnPlay.classList.remove('playing');
+}
+
+function advStart() {
+  if (!advResult || advTotal() === 0) return;
+  if (advFrame < 0 || advFrame >= advTotal() - 1) {
+    advFrame = 0;
+    advAccum = 0;
+  }
+  advPlaying = true;
+  advBtnPlay.textContent = '\u23f8';
+  advBtnPlay.classList.add('playing');
+  advLastTs = null;
+  advRafId  = requestAnimationFrame(advLoop);
+}
+
+function advLoop(ts) {
+  if (!advPlaying) return;
+  if (advLastTs === null) advLastTs = ts;
+  const dt = (ts - advLastTs) / 1000;
+  advLastTs = ts;
+
+  let slowFactor = 1;
+  if (advResult.lastShotGoalX != null && advFrame >= 0) {
+    const ballX = advResult.path[Math.min(advFrame, advResult.path.length - 1)]?.dist ?? 0;
+    const viewW = (advCanvas.parentElement?.clientWidth || window.innerWidth) * 10;
+    const distToGoal = Math.abs(advResult.lastShotGoalX - ballX);
+    if (distToGoal <= viewW && advFrame >= advResult.lastShotStartFrame) {
+      slowFactor = 0.35;
+    }
+  }
+  advAccum += dt * 60 * advSpeed() * slowFactor;
+  const steps = Math.floor(advAccum);
+  if (steps > 0) {
+    advAccum -= steps;
+    advFrame = Math.min(advFrame + steps, advTotal() - 1);
+  }
+
+  advDraw();
+  advSync();
+
+  if (advFrame >= advTotal() - 1) {
+    advFrame = -1;
+    advDraw();
+    advSync();
+    advStop();
+    return;
+  }
+  advRafId = requestAnimationFrame(advLoop);
+}
+
+function advRun(seedOverride) {
+  advStop();
+  let seed;
+  if (seedOverride !== undefined) {
+    seed = seedOverride;
+    advSeedInput.value = seed;
+  } else {
+    const raw = advSeedInput.value.trim();
+    seed = raw === '' ? Math.floor(Math.random() * 4294967296) : parseInt(raw, 10);
+    if (isNaN(seed)) seed = Math.floor(Math.random() * 4294967296);
+    advSeedInput.value = seed;
+  }
+  advResult = activeGame.simulate(seed);
+
+  // On goal outcomes, extend the path past the goalpost until the ball hits the ground
+  const lastEv = advResult.events[advResult.events.length - 1];
+  if (lastEv && lastEv.label === 'goal' && advResult.path.length >= 2) {
+    const p = advResult.path;
+    const n = p.length - 1;
+    const vx = p[n].dist - p[n - 1].dist;
+    let vy = (p[n].alt - p[n - 1].alt) - 1;
+    let ballX = p[n].dist;
+    let ballY = p[n].alt;
+    const mult = p[n].mult;
+    while (ballY > 0) {
+      ballX += vx;
+      ballY += vy;
+      vy -= 1;
+      p.push({ dist: ballX, alt: Math.max(0, ballY), mult });
+    }
+  }
+
+  advFrame  = 0;
+  advAccum  = 0;
+  advDraw();
+  advSync();
+  advStart();
+}
+
+advBtnRun.addEventListener('click', () => advRun());
+advSeedInput.addEventListener('keydown', e => { if (e.key === 'Enter') advRun(); });
+
+advBtnPlay.addEventListener('click', () => {
+  if (advPlaying) advStop();
+  else advStart();
+});
+
+advScrubber.addEventListener('input', () => {
+  advStop();
+  const v = parseInt(advScrubber.value, 10);
+  advFrame = v >= advTotal() - 1 ? -1 : v;
+  advDraw();
+  advSync();
+});
+
+window.addEventListener('resize', () => {
+  if (advResult && document.getElementById('tab-advanced')?.classList.contains('active')) {
+    advDraw();
+  }
+});
+
+loadAdvancedAssets();
 
 // ─── Init ───────────────────────────────────────────────────────────────────
 setActiveGame(listGames()[0].id);
