@@ -33,7 +33,7 @@ const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
 // Range [ARC_PEAK_MIN, ARC_PEAK_MAX), capped at 2500 + dx so short shots stay low.
 const ARC_PEAK_MIN = 2500;
 const ARC_PEAK_MAX = 5000;
-const MAX_BALL_VX  = 130;
+const MAX_BALL_VX  = 180;
 
 // Goalpost targeting weight = proximity^POW * SCALE.
 // Tuned so the most-forward attacker (~81% proximity) gets ~90% goalpost chance.
