@@ -10,16 +10,21 @@ function passesFilters(s, filters) {
   if (filters.maxTicks      != null && s.ticks            > filters.maxTicks)      return false;
   if (filters.minHpt        != null && s.hitsPerTick      < filters.minHpt)       return false;
   if (filters.maxHpt        != null && s.hitsPerTick      > filters.maxHpt)       return false;
-  if (filters.minBonuses     != null && s.bonusesCollected  < filters.minBonuses)     return false;
-  if (filters.maxBonuses     != null && s.bonusesCollected  > filters.maxBonuses)     return false;
   if (filters.minPosBonuses  != null && s.positiveBonuses   < filters.minPosBonuses)  return false;
   if (filters.maxPosBonuses  != null && s.positiveBonuses   > filters.maxPosBonuses)  return false;
   if (filters.minNegBonuses  != null && s.negativeBonuses   < filters.minNegBonuses)  return false;
   if (filters.maxNegBonuses  != null && s.negativeBonuses   > filters.maxNegBonuses)  return false;
-  if (filters.minScorerShots != null && s.scorerShots      < filters.minScorerShots) return false;
-  if (filters.maxScorerShots != null && s.scorerShots      > filters.maxScorerShots) return false;
+  if (filters.minTotalShots != null && s.totalShots        < filters.minTotalShots) return false;
+  if (filters.maxTotalShots != null && s.totalShots        > filters.maxTotalShots) return false;
+  if (filters.minShotsA    != null && s.shotsA            < filters.minShotsA)    return false;
+  if (filters.maxShotsA    != null && s.shotsA            > filters.maxShotsA)    return false;
+  if (filters.minShotsB    != null && s.shotsB            < filters.minShotsB)    return false;
+  if (filters.maxShotsB    != null && s.shotsB            > filters.maxShotsB)    return false;
+  if (filters.minDirChanges != null && s.dirChanges        < filters.minDirChanges) return false;
+  if (filters.maxDirChanges != null && s.dirChanges        > filters.maxDirChanges) return false;
   if (filters.minShots      != null && s.shots            < filters.minShots)     return false;
   if (filters.maxShots      != null && s.shots            > filters.maxShots)     return false;
+  if (filters.startTeam && s.startTeam !== filters.startTeam) return false;
   return true;
 }
 
@@ -60,5 +65,30 @@ export async function scanSeedsAsync(simulateSummaryFn, from, to, filters = {}, 
   }
 
   if (onProgress) onProgress(total, total);
+  return results;
+}
+
+/**
+ * Scan seeds 0..maxSeed, collecting up to `limit` matches per filter set.
+ * Yields to the event loop periodically. Returns early once limit is reached.
+ */
+export async function scanUntilLimit(simulateSummaryFn, filters, limit, onProgress = null, abortSignal = null) {
+  const results = [];
+  const maxSeed = 4294967296;
+  const BATCH = 500;
+
+  for (let seed = 0; seed < maxSeed; seed++) {
+    if (abortSignal?.aborted) break;
+    if (results.length >= limit) break;
+
+    const s = simulateSummaryFn(seed);
+    if (passesFilters(s, filters)) results.push(s);
+
+    if (seed % BATCH === 0) {
+      if (onProgress) onProgress(seed, results.length);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
   return results;
 }

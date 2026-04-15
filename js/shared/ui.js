@@ -54,6 +54,89 @@ export function updateLegend(container) {
   item('#6080a0', 'Missed (dim)');
 }
 
+export function renderCuratedTable(results, container) {
+  container.innerHTML = '';
+  if (results.length === 0) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a5580">No seeds in curated list.</div>';
+    return null;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'results-table';
+
+  const cols = [
+    { key: 'seed',            label: 'Seed',       align: 'num-right' },
+    { key: 'startTeam',       label: 'Start Team', align: '' },
+    { key: 'totalMultiplier', label: 'Total Mult', align: 'num-right' },
+    { key: 'filterNames',     label: 'Filter(s)',  align: '' },
+    { key: 'weight',          label: 'Weight',     align: 'num-right' },
+  ];
+
+  let sortCol = 'seed';
+  let sortAsc = true;
+
+  function sortAndRender() {
+    results.sort((a, b) => {
+      let va = a[sortCol], vb = b[sortCol];
+      if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+      if (va < vb) return sortAsc ? -1 : 1;
+      if (va > vb) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
+    const thead = table.querySelector('thead');
+    for (const th of thead.querySelectorAll('th')) {
+      const arrow = th.querySelector('.sort-arrow');
+      const col = th.dataset.col;
+      arrow.textContent = col === sortCol ? (sortAsc ? '\u25b2' : '\u25bc') : '';
+    }
+
+    const tbody = table.querySelector('tbody');
+    tbody.innerHTML = '';
+    for (const r of results) {
+      const tr = document.createElement('tr');
+      tr.className = r.totalMultiplier > 0 ? 'row-win' : 'row-crash';
+      tr.dataset.seed = r.seed;
+
+      for (const col of cols) {
+        const td = document.createElement('td');
+        if (col.align) td.className = col.align;
+        const v = r[col.key];
+        if (typeof v === 'number' && !Number.isInteger(v)) {
+          td.textContent = v < 0.1 ? v.toFixed(4) : v.toFixed(2);
+        } else {
+          td.textContent = v;
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  }
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  for (const col of cols) {
+    const th = document.createElement('th');
+    th.dataset.col = col.key;
+    th.innerHTML = `${col.label}<span class="sort-arrow"></span>`;
+    th.addEventListener('click', () => {
+      if (sortCol === col.key) sortAsc = !sortAsc;
+      else { sortCol = col.key; sortAsc = true; }
+      sortAndRender();
+    });
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  table.appendChild(tbody);
+
+  container.appendChild(table);
+  sortAndRender();
+  return table;
+}
+
 export function renderResultsTable(results, container) {
   container.innerHTML = '';
   if (results.length === 0) {
@@ -66,6 +149,7 @@ export function renderResultsTable(results, container) {
 
   const cols = [
     { key: 'seed',            label: 'Seed',      align: 'num-right' },
+    { key: 'startTeam',       label: 'Start Team', align: '' },
     { key: 'objectsHit',      label: 'Hits',      align: 'num-right' },
     { key: 'outcome',         label: 'Outcome',   align: '' },
     { key: 'finalMultiplier', label: 'Final Mult', align: 'num-right' },
@@ -74,10 +158,12 @@ export function renderResultsTable(results, container) {
     { key: 'peakAltitude',    label: 'Peak Alt',   align: 'num-right' },
     { key: 'ticks',           label: 'Ticks',      align: 'num-right' },
     { key: 'hitsPerTick',     label: 'Hits/Tick',  align: 'num-right' },
-    { key: 'bonusesCollected', label: 'Bonuses',            align: 'num-right' },
     { key: 'positiveBonuses', label: 'Positive Bonuses',    align: 'num-right' },
     { key: 'negativeBonuses', label: 'Negative Bonuses',   align: 'num-right' },
-    { key: 'scorerShots',     label: 'Shots from Scorer',  align: 'num-right' },
+    { key: 'totalShots',      label: 'Total Shots',         align: 'num-right' },
+    { key: 'shotsA',          label: 'Team A Shots',        align: 'num-right' },
+    { key: 'shotsB',          label: 'Team B Shots',        align: 'num-right' },
+    { key: 'dirChanges',      label: 'Dir Changes',         align: 'num-right' },
     { key: 'shots',           label: 'Shots from Shooter', align: 'num-right' },
   ];
 

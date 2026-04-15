@@ -17,6 +17,7 @@
   <button class="tab-btn active" data-tab="tab-visualizer">Visualizer</button>
   <button class="tab-btn" data-tab="tab-advanced">Advanced View</button>
   <button class="tab-btn" data-tab="tab-scanner">Seed Scanner</button>
+  <button class="tab-btn" data-tab="tab-curated">Curated List</button>
 </div>
 
 <!-- ── Tab 1: Single-seed Visualizer ──────────────────────────────────────── -->
@@ -26,6 +27,7 @@
     <input type="number" id="seed-input" placeholder="leave empty for random">
     <button class="btn-primary" id="btn-run">Simulate</button>
     <button class="btn-secondary" id="btn-random">Random</button>
+    <button class="btn-secondary" id="btn-curated-random">Curated Random</button>
   </div>
 
   <div class="playback-bar">
@@ -57,6 +59,7 @@
     <label for="adv-seed-input">Seed:</label>
     <input type="number" id="adv-seed-input" placeholder="leave empty for random">
     <button class="btn-primary" id="adv-btn-run">Simulate</button>
+    <button class="btn-secondary" id="adv-btn-curated-random">Curated Random</button>
   </div>
 
   <div class="adv-playback-bar">
@@ -99,6 +102,14 @@
         <option value="crash">Crash</option>
       </select>
     </div>
+    <div class="field">
+      <label for="f-start-team">Starting Team</label>
+      <select id="f-start-team">
+        <option value="any">Any</option>
+        <option value="A">Team A</option>
+        <option value="B">Team B</option>
+      </select>
+    </div>
     <div class="field field-actions">
       <label>&nbsp;</label>
       <div class="btn-group">
@@ -106,6 +117,14 @@
         <button class="btn-danger" id="btn-stop-scan" hidden>Stop</button>
       </div>
     </div>
+  </div>
+
+  <!-- filter presets -->
+  <div class="preset-row">
+    <select id="preset-select"><option value="">— Saved Filters —</option></select>
+    <button class="btn-secondary btn-sm" id="btn-preset-load">Load</button>
+    <button class="btn-secondary btn-sm" id="btn-preset-save">Save</button>
+    <button class="btn-danger btn-sm" id="btn-preset-delete">Delete</button>
   </div>
 
   <!-- filter grid: header + min row + max row -->
@@ -116,10 +135,12 @@
     <div class="fg-header">Distance</div>
     <div class="fg-header">Ticks</div>
     <div class="fg-header">Hits/Tick</div>
-    <div class="fg-header">Bonuses</div>
     <div class="fg-header">Positive Bonuses</div>
     <div class="fg-header">Negative Bonuses</div>
-    <div class="fg-header">Shots from Scorer</div>
+    <div class="fg-header">Total Shots</div>
+    <div class="fg-header">Team A Shots</div>
+    <div class="fg-header">Team B Shots</div>
+    <div class="fg-header">Dir Changes</div>
     <div class="fg-header">Shots from Shooter</div>
 
     <div class="fg-row-label">Min</div>
@@ -128,10 +149,12 @@
     <div class="fg-cell"><input type="number" id="f-min-dist" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-ticks" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-hpt" placeholder="—" step="any"></div>
-    <div class="fg-cell"><input type="number" id="f-min-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-pos-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-neg-bonuses" placeholder="—"></div>
-    <div class="fg-cell"><input type="number" id="f-min-scorer-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-total-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-shots-a" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-shots-b" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-dir-changes" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-shots" placeholder="—"></div>
 
     <div class="fg-row-label">Max</div>
@@ -140,15 +163,34 @@
     <div class="fg-cell"><input type="number" id="f-max-dist" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-ticks" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-hpt" placeholder="—" step="any"></div>
-    <div class="fg-cell"><input type="number" id="f-max-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-pos-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-neg-bonuses" placeholder="—"></div>
-    <div class="fg-cell"><input type="number" id="f-max-scorer-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-total-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-shots-a" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-shots-b" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-dir-changes" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-shots" placeholder="—"></div>
   </div>
 
   <div class="scanner-status" id="scan-status"></div>
   <div class="results-table-wrap" id="results-table-wrap"></div>
+</div>
+
+<!-- ── Tab 4: Curated List ──────────────────────────────────────────────── -->
+<div id="tab-curated" class="tab-panel">
+  <div class="scanner-row">
+    <div class="field field-actions">
+      <div class="btn-group">
+        <button class="btn-primary" id="btn-build-curated">Build Curated List</button>
+        <button class="btn-danger" id="btn-stop-curated" hidden>Stop</button>
+        <button class="btn-secondary" id="btn-export-curated" hidden>Export JSON</button>
+        <button class="btn-secondary" id="btn-import-curated">Import JSON</button>
+      </div>
+    </div>
+  </div>
+  <div class="scanner-status" id="curated-status"></div>
+  <div class="curated-warnings" id="curated-warnings"></div>
+  <div class="results-table-wrap" id="curated-table-wrap"></div>
 </div>
 
 <script type="module" src="js/app.js"></script>

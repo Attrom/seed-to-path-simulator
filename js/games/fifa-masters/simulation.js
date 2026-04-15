@@ -25,6 +25,8 @@ const BALL_MODEL_DIAMETER      = 520;
 const PLAYER_POINT_LOW_HEIGHT  = 790;
 const PLAYER_POINT_HIGH_HEIGHT = 1950;
 
+const TEAM_B_HEIGHT_OFFSET = 60;
+
 const CENTER_X = FIELD_WIDTH / 2;
 const GOAL_A_X = CENTER_X - GOAL_POST_POSITION;
 const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
@@ -258,13 +260,16 @@ function buildStops(players, startIdx, targets) {
   for (let i = 0; i < stops.length; i++) {
     if (stops[i].type === 'goal') {
       stops[i].y = PLAYER_POINT_LOW_HEIGHT;
-    } else if (i === 0) {
-      stops[i].y = PLAYER_POINT_LOW_HEIGHT;
     } else {
-      const dx = Math.abs(stops[i + 1].x - stops[i].x);
-      stops[i].y = dx > LONG_SHOT_THRESHOLD
-        ? PLAYER_POINT_LOW_HEIGHT
-        : PLAYER_POINT_HIGH_HEIGHT;
+      const off = players[stops[i].index].team === 'B' ? TEAM_B_HEIGHT_OFFSET : 0;
+      if (i === 0) {
+        stops[i].y = PLAYER_POINT_LOW_HEIGHT + off;
+      } else {
+        const dx = Math.abs(stops[i + 1].x - stops[i].x);
+        stops[i].y = (dx > LONG_SHOT_THRESHOLD
+          ? PLAYER_POINT_LOW_HEIGHT
+          : PLAYER_POINT_HIGH_HEIGHT) + off;
+      }
     }
   }
   return stops;
@@ -388,12 +393,15 @@ export function simulate(seed) {
   });
   // field players (capsules — team A left of x, team B right of x)
   for (const p of players) {
+    const base = p.team === 'B'
+      ? PLAYER_BASE_HEIGHT + TEAM_B_HEIGHT_OFFSET
+      : PLAYER_BASE_HEIGHT;
     missed.push({
       dist: p.x, alt: 0, label: p.team, isRocket: false,
       marker: {
         shape: 'capsule', color: p.team === 'A' ? '#e05858' : '#4088e0',
         opacity: 0.75, worldHeight: PLAYER_MODEL_HEIGHT,
-        worldWidth: PLAYER_MODEL_WIDTH, baseHeight: PLAYER_BASE_HEIGHT,
+        worldWidth: PLAYER_MODEL_WIDTH, baseHeight: base,
         side: p.team === 'A' ? 'left' : 'right',
       }
     });
@@ -416,11 +424,19 @@ export function simulate(seed) {
     }
   });
 
+  let totalShots = 0, shotsA = 0, shotsB = 0, dirChanges = 0;
+  let prevTeam = null;
   const shotCounts = new Map();
   for (const s of stops) {
-    if (s.type === 'player') shotCounts.set(s.index, (shotCounts.get(s.index) || 0) + 1);
+    if (s.type === 'player') {
+      const team = players[s.index].team;
+      totalShots++;
+      if (team === 'A') shotsA++; else shotsB++;
+      if (prevTeam !== null && team !== prevTeam) dirChanges++;
+      prevTeam = team;
+      shotCounts.set(s.index, (shotCounts.get(s.index) || 0) + 1);
+    }
   }
-  const scorerIdx = stops.length >= 2 ? stops[stops.length - 2].index : -1;
 
   return {
     seed, path, collected, missed, events,
@@ -432,7 +448,7 @@ export function simulate(seed) {
     bonusesCollected: posHits + negHits,
     positiveBonuses: posHits,
     negativeBonuses: negHits,
-    scorerShots: shotCounts.get(scorerIdx) || 0,
+    totalShots, shotsA, shotsB, dirChanges,
     shots: Math.max(0, ...shotCounts.values()),
     lastShotStartFrame,
     lastShotPeakFrame,
@@ -511,6 +527,7 @@ export function simulateSummary(seed) {
 
   return {
     seed,
+    startTeam,
     objectsHit:      hits,
     finalMultiplier:  mult,
     totalMultiplier:  landed ? mult : 0,
@@ -523,13 +540,21 @@ export function simulateSummary(seed) {
     positiveBonuses:  posHits,
     negativeBonuses:  negHits,
     ...(() => {
+      let totalShots = 0, shotsA = 0, shotsB = 0, dirChanges = 0;
+      let prevTeam = null;
       const sc = new Map();
       for (const s of stops) {
-        if (s.type === 'player') sc.set(s.index, (sc.get(s.index) || 0) + 1);
+        if (s.type === 'player') {
+          const team = players[s.index].team;
+          totalShots++;
+          if (team === 'A') shotsA++; else shotsB++;
+          if (prevTeam !== null && team !== prevTeam) dirChanges++;
+          prevTeam = team;
+          sc.set(s.index, (sc.get(s.index) || 0) + 1);
+        }
       }
-      const scorerIdx = stops.length >= 2 ? stops[stops.length - 2].index : -1;
       return {
-        scorerShots: sc.get(scorerIdx) || 0,
+        totalShots, shotsA, shotsB, dirChanges,
         shots: Math.max(0, ...sc.values()),
       };
     })(),

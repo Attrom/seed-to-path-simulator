@@ -216,10 +216,22 @@ canvas { display: block; width: 100%; }
 .field-actions { justify-content: flex-end; }
 .btn-group { display: flex; gap: 6px; }
 
+/* filter presets row */
+.preset-row {
+  display: flex; gap: 8px; align-items: center;
+  flex-wrap: wrap; justify-content: center; margin-bottom: 12px;
+}
+.preset-row select {
+  padding: 7px 10px; border: 1px solid #2a3050; border-radius: 6px;
+  background: #141828; color: #e0e4f0; font-size: .85rem;
+  font-family: 'Consolas', monospace; min-width: 200px;
+}
+.preset-row select:focus { outline: none; border-color: #5078c0; }
+
 /* filter grid: 5-col grid (label + 4 properties), rows for min/max */
 .filter-grid {
   display: grid;
-  grid-template-columns: auto repeat(10, 1fr);
+  grid-template-columns: auto repeat(12, 1fr);
   gap: 4px 8px;
   margin-bottom: 14px;
   max-width: 100%;
@@ -280,6 +292,16 @@ canvas { display: block; width: 100%; }
 
 .results-table-wrap { max-height: 420px; overflow-y: auto; }
 
+/* ── Curated list panel ──────────────────────────────────────────────────── */
+.curated-warnings {
+  width: 100%; margin-bottom: 10px;
+  font-size: .8rem; color: #d0a030;
+}
+.curated-warnings div {
+  padding: 4px 10px; background: #1e1a10; border-radius: 4px;
+  margin-bottom: 4px; border-left: 3px solid #d0a030;
+}
+
 </style>
 </head>
 <body>
@@ -293,6 +315,7 @@ canvas { display: block; width: 100%; }
   <button class="tab-btn active" data-tab="tab-visualizer">Visualizer</button>
   <button class="tab-btn" data-tab="tab-advanced">Advanced View</button>
   <button class="tab-btn" data-tab="tab-scanner">Seed Scanner</button>
+  <button class="tab-btn" data-tab="tab-curated">Curated List</button>
 </div>
 
 <!-- ── Tab 1: Single-seed Visualizer ──────────────────────────────────────── -->
@@ -302,6 +325,7 @@ canvas { display: block; width: 100%; }
     <input type="number" id="seed-input" placeholder="leave empty for random">
     <button class="btn-primary" id="btn-run">Simulate</button>
     <button class="btn-secondary" id="btn-random">Random</button>
+    <button class="btn-secondary" id="btn-curated-random">Curated Random</button>
   </div>
 
   <div class="playback-bar">
@@ -333,6 +357,7 @@ canvas { display: block; width: 100%; }
     <label for="adv-seed-input">Seed:</label>
     <input type="number" id="adv-seed-input" placeholder="leave empty for random">
     <button class="btn-primary" id="adv-btn-run">Simulate</button>
+    <button class="btn-secondary" id="adv-btn-curated-random">Curated Random</button>
   </div>
 
   <div class="adv-playback-bar">
@@ -375,6 +400,14 @@ canvas { display: block; width: 100%; }
         <option value="crash">Crash</option>
       </select>
     </div>
+    <div class="field">
+      <label for="f-start-team">Starting Team</label>
+      <select id="f-start-team">
+        <option value="any">Any</option>
+        <option value="A">Team A</option>
+        <option value="B">Team B</option>
+      </select>
+    </div>
     <div class="field field-actions">
       <label>&nbsp;</label>
       <div class="btn-group">
@@ -382,6 +415,14 @@ canvas { display: block; width: 100%; }
         <button class="btn-danger" id="btn-stop-scan" hidden>Stop</button>
       </div>
     </div>
+  </div>
+
+  <!-- filter presets -->
+  <div class="preset-row">
+    <select id="preset-select"><option value="">— Saved Filters —</option></select>
+    <button class="btn-secondary btn-sm" id="btn-preset-load">Load</button>
+    <button class="btn-secondary btn-sm" id="btn-preset-save">Save</button>
+    <button class="btn-danger btn-sm" id="btn-preset-delete">Delete</button>
   </div>
 
   <!-- filter grid: header + min row + max row -->
@@ -392,10 +433,12 @@ canvas { display: block; width: 100%; }
     <div class="fg-header">Distance</div>
     <div class="fg-header">Ticks</div>
     <div class="fg-header">Hits/Tick</div>
-    <div class="fg-header">Bonuses</div>
     <div class="fg-header">Positive Bonuses</div>
     <div class="fg-header">Negative Bonuses</div>
-    <div class="fg-header">Shots from Scorer</div>
+    <div class="fg-header">Total Shots</div>
+    <div class="fg-header">Team A Shots</div>
+    <div class="fg-header">Team B Shots</div>
+    <div class="fg-header">Dir Changes</div>
     <div class="fg-header">Shots from Shooter</div>
 
     <div class="fg-row-label">Min</div>
@@ -404,10 +447,12 @@ canvas { display: block; width: 100%; }
     <div class="fg-cell"><input type="number" id="f-min-dist" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-ticks" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-hpt" placeholder="—" step="any"></div>
-    <div class="fg-cell"><input type="number" id="f-min-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-pos-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-neg-bonuses" placeholder="—"></div>
-    <div class="fg-cell"><input type="number" id="f-min-scorer-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-total-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-shots-a" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-shots-b" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-min-dir-changes" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-min-shots" placeholder="—"></div>
 
     <div class="fg-row-label">Max</div>
@@ -416,15 +461,34 @@ canvas { display: block; width: 100%; }
     <div class="fg-cell"><input type="number" id="f-max-dist" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-ticks" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-hpt" placeholder="—" step="any"></div>
-    <div class="fg-cell"><input type="number" id="f-max-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-pos-bonuses" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-neg-bonuses" placeholder="—"></div>
-    <div class="fg-cell"><input type="number" id="f-max-scorer-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-total-shots" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-shots-a" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-shots-b" placeholder="—"></div>
+    <div class="fg-cell"><input type="number" id="f-max-dir-changes" placeholder="—"></div>
     <div class="fg-cell"><input type="number" id="f-max-shots" placeholder="—"></div>
   </div>
 
   <div class="scanner-status" id="scan-status"></div>
   <div class="results-table-wrap" id="results-table-wrap"></div>
+</div>
+
+<!-- ── Tab 4: Curated List ──────────────────────────────────────────────── -->
+<div id="tab-curated" class="tab-panel">
+  <div class="scanner-row">
+    <div class="field field-actions">
+      <div class="btn-group">
+        <button class="btn-primary" id="btn-build-curated">Build Curated List</button>
+        <button class="btn-danger" id="btn-stop-curated" hidden>Stop</button>
+        <button class="btn-secondary" id="btn-export-curated" hidden>Export JSON</button>
+        <button class="btn-secondary" id="btn-import-curated">Import JSON</button>
+      </div>
+    </div>
+  </div>
+  <div class="scanner-status" id="curated-status"></div>
+  <div class="curated-warnings" id="curated-warnings"></div>
+  <div class="results-table-wrap" id="curated-table-wrap"></div>
 </div>
 
 <script>
@@ -1012,16 +1076,21 @@ function passesFilters(s, filters) {
   if (filters.maxTicks      != null && s.ticks            > filters.maxTicks)      return false;
   if (filters.minHpt        != null && s.hitsPerTick      < filters.minHpt)       return false;
   if (filters.maxHpt        != null && s.hitsPerTick      > filters.maxHpt)       return false;
-  if (filters.minBonuses     != null && s.bonusesCollected  < filters.minBonuses)     return false;
-  if (filters.maxBonuses     != null && s.bonusesCollected  > filters.maxBonuses)     return false;
   if (filters.minPosBonuses  != null && s.positiveBonuses   < filters.minPosBonuses)  return false;
   if (filters.maxPosBonuses  != null && s.positiveBonuses   > filters.maxPosBonuses)  return false;
   if (filters.minNegBonuses  != null && s.negativeBonuses   < filters.minNegBonuses)  return false;
   if (filters.maxNegBonuses  != null && s.negativeBonuses   > filters.maxNegBonuses)  return false;
-  if (filters.minScorerShots != null && s.scorerShots      < filters.minScorerShots) return false;
-  if (filters.maxScorerShots != null && s.scorerShots      > filters.maxScorerShots) return false;
+  if (filters.minTotalShots != null && s.totalShots        < filters.minTotalShots) return false;
+  if (filters.maxTotalShots != null && s.totalShots        > filters.maxTotalShots) return false;
+  if (filters.minShotsA    != null && s.shotsA            < filters.minShotsA)    return false;
+  if (filters.maxShotsA    != null && s.shotsA            > filters.maxShotsA)    return false;
+  if (filters.minShotsB    != null && s.shotsB            < filters.minShotsB)    return false;
+  if (filters.maxShotsB    != null && s.shotsB            > filters.maxShotsB)    return false;
+  if (filters.minDirChanges != null && s.dirChanges        < filters.minDirChanges) return false;
+  if (filters.maxDirChanges != null && s.dirChanges        > filters.maxDirChanges) return false;
   if (filters.minShots      != null && s.shots            < filters.minShots)     return false;
   if (filters.maxShots      != null && s.shots            > filters.maxShots)     return false;
+  if (filters.startTeam && s.startTeam !== filters.startTeam) return false;
   return true;
 }
 
@@ -1065,8 +1134,30 @@ async function scanSeedsAsync(simulateSummaryFn, from, to, filters = {}, onProgr
   return results;
 }
 
+async function scanUntilLimit(simulateSummaryFn, filters, limit, onProgress = null, abortSignal = null) {
+  const results = [];
+  const maxSeed = 4294967296;
+  const BATCH = 500;
+
+  for (let seed = 0; seed < maxSeed; seed++) {
+    if (abortSignal?.aborted) break;
+    if (results.length >= limit) break;
+
+    const s = simulateSummaryFn(seed);
+    if (passesFilters(s, filters)) results.push(s);
+
+    if (seed % BATCH === 0) {
+      if (onProgress) onProgress(seed, results.length);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  return results;
+}
+
   SharedScanner.scanSeeds = scanSeeds;
   SharedScanner.scanSeedsAsync = scanSeedsAsync;
+  SharedScanner.scanUntilLimit = scanUntilLimit;
 })();
 
 // ── js/shared/ui.js ──
@@ -1128,6 +1219,89 @@ function updateLegend(container) {
   item('#6080a0', 'Missed (dim)');
 }
 
+function renderCuratedTable(results, container) {
+  container.innerHTML = '';
+  if (results.length === 0) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:#4a5580">No seeds in curated list.</div>';
+    return null;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'results-table';
+
+  const cols = [
+    { key: 'seed',            label: 'Seed',       align: 'num-right' },
+    { key: 'startTeam',       label: 'Start Team', align: '' },
+    { key: 'totalMultiplier', label: 'Total Mult', align: 'num-right' },
+    { key: 'filterNames',     label: 'Filter(s)',  align: '' },
+    { key: 'weight',          label: 'Weight',     align: 'num-right' },
+  ];
+
+  let sortCol = 'seed';
+  let sortAsc = true;
+
+  function sortAndRender() {
+    results.sort((a, b) => {
+      let va = a[sortCol], vb = b[sortCol];
+      if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+      if (va < vb) return sortAsc ? -1 : 1;
+      if (va > vb) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
+    const thead = table.querySelector('thead');
+    for (const th of thead.querySelectorAll('th')) {
+      const arrow = th.querySelector('.sort-arrow');
+      const col = th.dataset.col;
+      arrow.textContent = col === sortCol ? (sortAsc ? '\u25b2' : '\u25bc') : '';
+    }
+
+    const tbody = table.querySelector('tbody');
+    tbody.innerHTML = '';
+    for (const r of results) {
+      const tr = document.createElement('tr');
+      tr.className = r.totalMultiplier > 0 ? 'row-win' : 'row-crash';
+      tr.dataset.seed = r.seed;
+
+      for (const col of cols) {
+        const td = document.createElement('td');
+        if (col.align) td.className = col.align;
+        const v = r[col.key];
+        if (typeof v === 'number' && !Number.isInteger(v)) {
+          td.textContent = v < 0.1 ? v.toFixed(4) : v.toFixed(2);
+        } else {
+          td.textContent = v;
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  }
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  for (const col of cols) {
+    const th = document.createElement('th');
+    th.dataset.col = col.key;
+    th.innerHTML = `${col.label}<span class="sort-arrow"></span>`;
+    th.addEventListener('click', () => {
+      if (sortCol === col.key) sortAsc = !sortAsc;
+      else { sortCol = col.key; sortAsc = true; }
+      sortAndRender();
+    });
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  table.appendChild(tbody);
+
+  container.appendChild(table);
+  sortAndRender();
+  return table;
+}
+
 function renderResultsTable(results, container) {
   container.innerHTML = '';
   if (results.length === 0) {
@@ -1140,6 +1314,7 @@ function renderResultsTable(results, container) {
 
   const cols = [
     { key: 'seed',            label: 'Seed',      align: 'num-right' },
+    { key: 'startTeam',       label: 'Start Team', align: '' },
     { key: 'objectsHit',      label: 'Hits',      align: 'num-right' },
     { key: 'outcome',         label: 'Outcome',   align: '' },
     { key: 'finalMultiplier', label: 'Final Mult', align: 'num-right' },
@@ -1148,10 +1323,12 @@ function renderResultsTable(results, container) {
     { key: 'peakAltitude',    label: 'Peak Alt',   align: 'num-right' },
     { key: 'ticks',           label: 'Ticks',      align: 'num-right' },
     { key: 'hitsPerTick',     label: 'Hits/Tick',  align: 'num-right' },
-    { key: 'bonusesCollected', label: 'Bonuses',            align: 'num-right' },
     { key: 'positiveBonuses', label: 'Positive Bonuses',    align: 'num-right' },
     { key: 'negativeBonuses', label: 'Negative Bonuses',   align: 'num-right' },
-    { key: 'scorerShots',     label: 'Shots from Scorer',  align: 'num-right' },
+    { key: 'totalShots',      label: 'Total Shots',         align: 'num-right' },
+    { key: 'shotsA',          label: 'Team A Shots',        align: 'num-right' },
+    { key: 'shotsB',          label: 'Team B Shots',        align: 'num-right' },
+    { key: 'dirChanges',      label: 'Dir Changes',         align: 'num-right' },
     { key: 'shots',           label: 'Shots from Shooter', align: 'num-right' },
   ];
 
@@ -1226,6 +1403,7 @@ function renderResultsTable(results, container) {
   SharedUI.updateInfoBar = updateInfoBar;
   SharedUI.updateEventsStrip = updateEventsStrip;
   SharedUI.updateLegend = updateLegend;
+  SharedUI.renderCuratedTable = renderCuratedTable;
   SharedUI.renderResultsTable = renderResultsTable;
 })();
 
@@ -1267,7 +1445,7 @@ const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
 // Range [ARC_PEAK_MIN, ARC_PEAK_MAX), capped at 2500 + dx so short shots stay low.
 const ARC_PEAK_MIN = 2500;
 const ARC_PEAK_MAX = 5000;
-const MAX_BALL_VX  = 130;
+const MAX_BALL_VX  = 180;
 
 // Goalpost targeting weight = proximity^POW * SCALE.
 // Tuned so the most-forward attacker (~81% proximity) gets ~90% goalpost chance.
@@ -1650,11 +1828,19 @@ function simulate(seed) {
     }
   });
 
+  let totalShots = 0, shotsA = 0, shotsB = 0, dirChanges = 0;
+  let prevTeam = null;
   const shotCounts = new Map();
   for (const s of stops) {
-    if (s.type === 'player') shotCounts.set(s.index, (shotCounts.get(s.index) || 0) + 1);
+    if (s.type === 'player') {
+      const team = players[s.index].team;
+      totalShots++;
+      if (team === 'A') shotsA++; else shotsB++;
+      if (prevTeam !== null && team !== prevTeam) dirChanges++;
+      prevTeam = team;
+      shotCounts.set(s.index, (shotCounts.get(s.index) || 0) + 1);
+    }
   }
-  const scorerIdx = stops.length >= 2 ? stops[stops.length - 2].index : -1;
 
   return {
     seed, path, collected, missed, events,
@@ -1666,7 +1852,7 @@ function simulate(seed) {
     bonusesCollected: posHits + negHits,
     positiveBonuses: posHits,
     negativeBonuses: negHits,
-    scorerShots: shotCounts.get(scorerIdx) || 0,
+    totalShots, shotsA, shotsB, dirChanges,
     shots: Math.max(0, ...shotCounts.values()),
     lastShotStartFrame,
     lastShotPeakFrame,
@@ -1745,6 +1931,7 @@ function simulateSummary(seed) {
 
   return {
     seed,
+    startTeam,
     objectsHit:      hits,
     finalMultiplier:  mult,
     totalMultiplier:  landed ? mult : 0,
@@ -1757,13 +1944,21 @@ function simulateSummary(seed) {
     positiveBonuses:  posHits,
     negativeBonuses:  negHits,
     ...(() => {
+      let totalShots = 0, shotsA = 0, shotsB = 0, dirChanges = 0;
+      let prevTeam = null;
       const sc = new Map();
       for (const s of stops) {
-        if (s.type === 'player') sc.set(s.index, (sc.get(s.index) || 0) + 1);
+        if (s.type === 'player') {
+          const team = players[s.index].team;
+          totalShots++;
+          if (team === 'A') shotsA++; else shotsB++;
+          if (prevTeam !== null && team !== prevTeam) dirChanges++;
+          prevTeam = team;
+          sc.set(s.index, (sc.get(s.index) || 0) + 1);
+        }
       }
-      const scorerIdx = stops.length >= 2 ? stops[stops.length - 2].index : -1;
       return {
-        scorerShots: sc.get(scorerIdx) || 0,
+        totalShots, shotsA, shotsB, dirChanges,
         shots: Math.max(0, ...sc.values()),
       };
     })(),
@@ -1803,7 +1998,7 @@ function getGame(id) {
 const { render, computeBounds } = SharedRenderer;
 const { loadAdvancedAssets, renderAdvanced } = SharedAdvancedRenderer;
 const { scanSeedsAsync } = SharedScanner;
-const { updateInfoBar, updateEventsStrip, updateLegend, renderResultsTable } = SharedUI;
+const { updateInfoBar, updateEventsStrip, updateLegend, renderResultsTable, renderCuratedTable } = SharedUI;
 const { listGames, getGame } = GameRegistry;
 
 // ─── DOM refs ───────────────────────────────────────────────────────────────
@@ -1830,6 +2025,7 @@ const tabPanels    = document.querySelectorAll('.tab-panel');
 const scanFrom     = $('scan-from');
 const scanTo       = $('scan-to');
 const fOutcome     = $('f-outcome');
+const fStartTeam   = $('f-start-team');
 const fMinHits     = $('f-min-hits');
 const fMaxHits     = $('f-max-hits');
 const fMinMult     = $('f-min-mult');
@@ -1840,20 +2036,37 @@ const fMinTicks    = $('f-min-ticks');
 const fMaxTicks    = $('f-max-ticks');
 const fMinHpt      = $('f-min-hpt');
 const fMaxHpt      = $('f-max-hpt');
-const fMinBonuses     = $('f-min-bonuses');
-const fMaxBonuses     = $('f-max-bonuses');
 const fMinPosBonuses  = $('f-min-pos-bonuses');
 const fMaxPosBonuses  = $('f-max-pos-bonuses');
 const fMinNegBonuses  = $('f-min-neg-bonuses');
 const fMaxNegBonuses  = $('f-max-neg-bonuses');
-const fMinScorerShots = $('f-min-scorer-shots');
-const fMaxScorerShots = $('f-max-scorer-shots');
+const fMinTotalShots  = $('f-min-total-shots');
+const fMaxTotalShots  = $('f-max-total-shots');
+const fMinShotsA   = $('f-min-shots-a');
+const fMaxShotsA   = $('f-max-shots-a');
+const fMinShotsB   = $('f-min-shots-b');
+const fMaxShotsB   = $('f-max-shots-b');
+const fMinDirChanges = $('f-min-dir-changes');
+const fMaxDirChanges = $('f-max-dir-changes');
 const fMinShots    = $('f-min-shots');
 const fMaxShots    = $('f-max-shots');
 const btnScan      = $('btn-scan');
 const btnStopScan  = $('btn-stop-scan');
 const scanStatus   = $('scan-status');
 const tableWrap    = $('results-table-wrap');
+
+const presetSelect    = $('preset-select');
+const btnPresetLoad   = $('btn-preset-load');
+const btnPresetSave   = $('btn-preset-save');
+const btnPresetDelete = $('btn-preset-delete');
+
+const btnBuildCurated  = $('btn-build-curated');
+const btnStopCurated   = $('btn-stop-curated');
+const btnExportCurated = $('btn-export-curated');
+const btnImportCurated = $('btn-import-curated');
+const curatedStatus    = $('curated-status');
+const curatedWarnings  = $('curated-warnings');
+const curatedTableWrap = $('curated-table-wrap');
 
 // ─── Active game ────────────────────────────────────────────────────────────
 let activeGame = null;
@@ -1982,8 +2195,22 @@ function runSingle(seedOverride) {
   updateLegend(legend);
 }
 
+const btnCuratedRandom = $('btn-curated-random');
+
+function pickCuratedSeed() {
+  if (!curatedResults || curatedResults.length === 0) {
+    alert('No curated list available. Build one in the Curated List tab first.');
+    return null;
+  }
+  return curatedResults[Math.floor(Math.random() * curatedResults.length)].seed;
+}
+
 btnRun.addEventListener('click', () => runSingle());
 btnRandom.addEventListener('click', () => { seedInput.value = ''; runSingle(); });
+btnCuratedRandom.addEventListener('click', () => {
+  const seed = pickCuratedSeed();
+  if (seed != null) runSingle(seed);
+});
 seedInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSingle(); });
 
 // ─── Playback controls ─────────────────────────────────────────────────────
@@ -2025,18 +2252,24 @@ function buildFilters() {
   f.maxTicks      = v(fMaxTicks);
   f.minHpt        = v(fMinHpt);
   f.maxHpt        = v(fMaxHpt);
-  f.minBonuses     = v(fMinBonuses);
-  f.maxBonuses     = v(fMaxBonuses);
   f.minPosBonuses  = v(fMinPosBonuses);
   f.maxPosBonuses  = v(fMaxPosBonuses);
   f.minNegBonuses  = v(fMinNegBonuses);
   f.maxNegBonuses  = v(fMaxNegBonuses);
-  f.minScorerShots = v(fMinScorerShots);
-  f.maxScorerShots = v(fMaxScorerShots);
+  f.minTotalShots = v(fMinTotalShots);
+  f.maxTotalShots = v(fMaxTotalShots);
+  f.minShotsA     = v(fMinShotsA);
+  f.maxShotsA     = v(fMaxShotsA);
+  f.minShotsB     = v(fMinShotsB);
+  f.maxShotsB     = v(fMaxShotsB);
+  f.minDirChanges = v(fMinDirChanges);
+  f.maxDirChanges = v(fMaxDirChanges);
   f.minShots      = v(fMinShots);
   f.maxShots      = v(fMaxShots);
   const oc = fOutcome.value;
   if (oc !== 'any') f.outcome = oc;
+  const st = fStartTeam.value;
+  if (st !== 'any') f.startTeam = st;
   return f;
 }
 
@@ -2087,9 +2320,681 @@ async function runScan() {
 btnScan.addEventListener('click', runScan);
 btnStopScan.addEventListener('click', () => { if (scanAbort) scanAbort.abort(); });
 
-[scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt, fMinBonuses, fMaxBonuses, fMinPosBonuses, fMaxPosBonuses, fMinNegBonuses, fMaxNegBonuses, fMinScorerShots, fMaxScorerShots, fMinShots, fMaxShots].forEach(el => {
+[scanFrom, scanTo, fMinHits, fMaxHits, fMinMult, fMaxMult, fMinDist, fMaxDist, fMinTicks, fMaxTicks, fMinHpt, fMaxHpt, fMinPosBonuses, fMaxPosBonuses, fMinNegBonuses, fMaxNegBonuses, fMinTotalShots, fMaxTotalShots, fMinShotsA, fMaxShotsA, fMinShotsB, fMaxShotsB, fMinDirChanges, fMaxDirChanges, fMinShots, fMaxShots].forEach(el => {
   el.addEventListener('keydown', e => { if (e.key === 'Enter') runScan(); });
 });
+
+// ─── Filter Presets ──────────────────────────────────────────────────────────
+const PRESETS_KEY = 'seedSim_filterPresets';
+
+const filterFields = [
+  { key: 'scanFrom',       el: scanFrom },
+  { key: 'scanTo',         el: scanTo },
+  { key: 'outcome',        el: fOutcome },
+  { key: 'startTeam',      el: fStartTeam },
+  { key: 'minHits',        el: fMinHits },
+  { key: 'maxHits',        el: fMaxHits },
+  { key: 'minMult',        el: fMinMult },
+  { key: 'maxMult',        el: fMaxMult },
+  { key: 'minDist',        el: fMinDist },
+  { key: 'maxDist',        el: fMaxDist },
+  { key: 'minTicks',       el: fMinTicks },
+  { key: 'maxTicks',       el: fMaxTicks },
+  { key: 'minHpt',         el: fMinHpt },
+  { key: 'maxHpt',         el: fMaxHpt },
+  { key: 'minPosBonuses',  el: fMinPosBonuses },
+  { key: 'maxPosBonuses',  el: fMaxPosBonuses },
+  { key: 'minNegBonuses',  el: fMinNegBonuses },
+  { key: 'maxNegBonuses',  el: fMaxNegBonuses },
+  { key: 'minTotalShots',  el: fMinTotalShots },
+  { key: 'maxTotalShots',  el: fMaxTotalShots },
+  { key: 'minShotsA',      el: fMinShotsA },
+  { key: 'maxShotsA',      el: fMaxShotsA },
+  { key: 'minShotsB',      el: fMinShotsB },
+  { key: 'maxShotsB',      el: fMaxShotsB },
+  { key: 'minDirChanges',  el: fMinDirChanges },
+  { key: 'maxDirChanges',  el: fMaxDirChanges },
+  { key: 'minShots',       el: fMinShots },
+  { key: 'maxShots',       el: fMaxShots },
+];
+
+function loadPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function savePresets(presets) {
+  localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+}
+
+function refreshPresetSelect() {
+  const presets = loadPresets();
+  const names = Object.keys(presets).sort((a, b) => a.localeCompare(b));
+  presetSelect.innerHTML = '<option value="">\u2014 Saved Filters \u2014</option>';
+  for (const name of names) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    presetSelect.appendChild(opt);
+  }
+}
+
+function captureFilterState() {
+  const state = {};
+  for (const { key, el } of filterFields) state[key] = el.value;
+  return state;
+}
+
+function applyFilterState(state) {
+  for (const { key, el } of filterFields) {
+    if (key in state) el.value = state[key];
+  }
+}
+
+btnPresetSave.addEventListener('click', () => {
+  const name = prompt('Preset name:');
+  if (!name || !name.trim()) return;
+  const presets = loadPresets();
+  presets[name.trim()] = captureFilterState();
+  savePresets(presets);
+  refreshPresetSelect();
+  presetSelect.value = name.trim();
+});
+
+btnPresetLoad.addEventListener('click', () => {
+  const name = presetSelect.value;
+  if (!name) return;
+  const presets = loadPresets();
+  if (presets[name]) applyFilterState(presets[name]);
+});
+
+btnPresetDelete.addEventListener('click', () => {
+  const name = presetSelect.value;
+  if (!name) return;
+  if (!confirm(`Delete preset "${name}"?`)) return;
+  const presets = loadPresets();
+  delete presets[name];
+  savePresets(presets);
+  refreshPresetSelect();
+});
+
+refreshPresetSelect();
+
+// ─── Curated List Builder (parallel Web Workers) ─────────────────────────────
+let curatedWorkers = [];
+let curatedResults = null;
+const curatedCache = new Map();
+
+const CURATED_RESULTS_KEY = 'curatedResults';
+const CURATED_CACHE_KEY   = 'curatedCache';
+
+function saveCuratedToStorage() {
+  try {
+    if (curatedResults) {
+      localStorage.setItem(CURATED_RESULTS_KEY, JSON.stringify(curatedResults));
+    } else {
+      localStorage.removeItem(CURATED_RESULTS_KEY);
+    }
+    const cacheObj = {};
+    for (const [k, v] of curatedCache) cacheObj[k] = v;
+    localStorage.setItem(CURATED_CACHE_KEY, JSON.stringify(cacheObj));
+  } catch (_) { /* quota exceeded — best-effort */ }
+}
+
+function loadCuratedFromStorage() {
+  try {
+    const raw = localStorage.getItem(CURATED_RESULTS_KEY);
+    if (raw) curatedResults = JSON.parse(raw);
+    const cacheRaw = localStorage.getItem(CURATED_CACHE_KEY);
+    if (cacheRaw) {
+      const obj = JSON.parse(cacheRaw);
+      for (const k of Object.keys(obj)) curatedCache.set(k, obj[k]);
+    }
+  } catch (_) { /* corrupt data — ignore */ }
+}
+
+const CURATED_WORKER_CODE = `'use strict';
+class FlightRandom {
+  constructor() { this.s0 = 0; this.s1 = 0; this.s2 = 0; }
+  seed(v) { this.s0 = v; this.s1 = v * 213947 + 1238971; this.s2 = v * 7431 + 94823; this.random(); }
+  random(max = Number.MAX_SAFE_INTEGER) {
+    let t = this.s0; const s = this.s1; this.s0 = s;
+    t ^= t << 23; t ^= t >> 17; t ^= s; t ^= s >> 26; this.s1 = t;
+    this.s2 = (1103515245 * this.s2 + 12345) % 2147483648;
+    return (this.s0 + this.s1 + this.s2) % max;
+  }
+}
+const FIELD_WIDTH = 27100;
+const BONUS_NEGATIVE_PER_SIDE = 5;
+const BONUS_POSITIVE_PER_SIDE = 12;
+const BONUS_HIT_R2 = 150 * 150;
+const MAX_MULT = 500;
+const TICK_LIMIT = 20000;
+const GOAL_POST_POSITION = 12160;
+const MAX_MULTIPLIER_HEIGHT = 4100;
+const MIN_MULTIPLIER_HEIGHT = 2450;
+const PLAYER_POINT_LOW_HEIGHT = 790;
+const PLAYER_POINT_HIGH_HEIGHT = 1950;
+const TEAM_B_HEIGHT_OFFSET = 60;
+const CENTER_X = FIELD_WIDTH / 2;
+const GOAL_A_X = CENTER_X - GOAL_POST_POSITION;
+const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
+const ARC_PEAK_MIN = 2500;
+const ARC_PEAK_MAX = 5000;
+const MAX_BALL_VX = 180;
+const GOAL_W_POW = 6;
+const GOAL_W_SCALE = 96;
+const W_PRECISION = 10000;
+const LONG_SHOT_THRESHOLD = 7000;
+const CLOSE_PAIRS = new Map([[2, 3], [3, 2], [8, 9], [9, 8]]);
+const BONUS_POSITIVE_TYPES = [
+  { add: 1, mult: 1 }, { add: 1, mult: 1 }, { add: 1, mult: 1 },
+  { add: 2, mult: 1 }, { add: 2, mult: 1 },
+  { add: 5, mult: 1 }, { add: 10, mult: 1 },
+  { add: 0, mult: 2 }, { add: 0, mult: 3 },
+];
+const BONUS_NEGATIVE_TYPE = { add: 0, mult: 0.5 };
+const BONUS_MIN_DIST_SQ = 500 * 500;
+const BONUS_PLACE_TRIES = 50;
+const PLAYER_LAYOUT = [
+  { team: 'A', offset: -9830 }, { team: 'B', offset: -8230 },
+  { team: 'A', offset: -5770 }, { team: 'B', offset: -5630 },
+  { team: 'B', offset: -3490 }, { team: 'A', offset: -940 },
+  { team: 'B', offset: 940 },   { team: 'A', offset: 3940 },
+  { team: 'A', offset: 5630 },  { team: 'B', offset: 5770 },
+  { team: 'A', offset: 8230 },  { team: 'B', offset: 9830 },
+];
+function segDistSq(ax, ay, bx, by, px, py) {
+  const dx = bx - ax, dy = by - ay; const len2 = dx * dx + dy * dy;
+  if (len2 === 0) { const ex = px - ax, ey = py - ay; return ex * ex + ey * ey; }
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+  const cx = ax + t * dx - px, cy = ay + t * dy - py; return cx * cx + cy * cy;
+}
+function buildPlayers() {
+  const center = FIELD_WIDTH / 2;
+  return PLAYER_LAYOUT.map(({ team, offset }) => ({ x: Math.round(center + offset), team }));
+}
+function findCenterPlayer(players, team) {
+  const center = FIELD_WIDTH / 2; let best = -1, bestD = Infinity;
+  for (let i = 0; i < players.length; i++) {
+    if (players[i].team !== team) continue;
+    const d = Math.abs(players[i].x - center); if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+function tooClose(placed, x, y) {
+  for (let j = 0; j < placed.length; j++) {
+    const dx = placed[j].x - x, dy = placed[j].y - y;
+    if (dx * dx + dy * dy < BONUS_MIN_DIST_SQ) return true;
+  }
+  return false;
+}
+function placePair(rng, out, t, hRange, halfW) {
+  let ox, y, lx, rx;
+  for (let attempt = 0; attempt < BONUS_PLACE_TRIES; attempt++) {
+    ox = rng.random(halfW - 1000) + 1000; y = rng.random(hRange) + MIN_MULTIPLIER_HEIGHT;
+    lx = GOAL_A_X + ox; rx = GOAL_B_X - ox;
+    if (!tooClose(out, lx, y) && !tooClose(out, rx, y)) break;
+  }
+  out.push({ x: lx, y, add: t.add, mult: t.mult });
+  out.push({ x: rx, y, add: t.add, mult: t.mult });
+}
+function generateBonusPositions(rng) {
+  const hRange = MAX_MULTIPLIER_HEIGHT - MIN_MULTIPLIER_HEIGHT;
+  const halfW = (GOAL_B_X - GOAL_A_X) / 2; const out = [];
+  for (let i = 0; i < BONUS_NEGATIVE_PER_SIDE; i++) placePair(rng, out, BONUS_NEGATIVE_TYPE, hRange, halfW);
+  for (let i = 0; i < BONUS_POSITIVE_PER_SIDE; i++) {
+    const t = BONUS_POSITIVE_TYPES[rng.random(BONUS_POSITIVE_TYPES.length)];
+    placePair(rng, out, t, hRange, halfW);
+  }
+  return out;
+}
+function chooseTarget(rng, kickerX, kickRight, players, kickerIdx, prevIdx) {
+  const goalX = kickRight ? GOAL_B_X : GOAL_A_X;
+  const blocked = CLOSE_PAIRS.get(kickerIdx); const candidates = [];
+  for (let i = 0; i < players.length; i++) {
+    if (i === blocked || i === prevIdx) continue;
+    if (kickRight ? players[i].x > kickerX : players[i].x < kickerX)
+      candidates.push({ type: 'player', index: i, x: players[i].x });
+  }
+  candidates.sort((a, b) => Math.abs(a.x - kickerX) - Math.abs(b.x - kickerX));
+  const goalDist = GOAL_B_X - GOAL_A_X;
+  const proximity = 1 - Math.abs(goalX - kickerX) / goalDist;
+  const goalW = Math.max(0.1, Math.pow(proximity, GOAL_W_POW) * GOAL_W_SCALE);
+  let totalW = goalW; const weights = [];
+  for (let i = 0; i < candidates.length; i++) { const w = 1 / (i + 1); weights.push(w); totalW += w; }
+  let roll = (rng.random(W_PRECISION) / W_PRECISION) * totalW;
+  for (let i = 0; i < candidates.length; i++) { roll -= weights[i]; if (roll <= 0) return candidates[i]; }
+  return { type: 'goal', x: goalX };
+}
+function vFromPeak(peak, fromY) {
+  const rel = peak - fromY; return Math.max(1, Math.round((-1 + Math.sqrt(1 + 8 * rel)) / 2));
+}
+function minPeakForSpeed(fromX, fromY, targetX, targetY) {
+  const absDx = Math.abs(targetX - fromX); if (absDx === 0) return 0;
+  const dy = targetY - fromY; let Tmin = Math.ceil(absDx / MAX_BALL_VX);
+  if (dy > 0 && Tmin * Tmin <= 2 * dy) Tmin = Math.ceil(Math.sqrt(2 * dy)) + 1;
+  const V = Math.max(1, Math.ceil((Tmin + 2 * dy / Tmin - 1) / 2));
+  return fromY + V * (V + 1) / 2;
+}
+function computeArc(fromX, fromY, targetX, targetY, V) {
+  const dy = targetY - fromY; const d = 2 * V + 1; const disc = d * d - 8 * dy;
+  const T = Math.max(1, Math.round((d + Math.sqrt(Math.max(0, disc))) / 2));
+  const vx = (targetX - fromX) / T; return { vx, vy: V, T };
+}
+function buildTravelList(rng, players, startIdx) {
+  const targets = []; let curX = players[startIdx].x; let curIdx = startIdx;
+  const otherCenter = findCenterPlayer(players, players[startIdx].team === 'A' ? 'B' : 'A');
+  let prevIdx = otherCenter;
+  for (let i = 0; i < 200; i++) {
+    const kickRight = players[curIdx].team === 'A';
+    const target = chooseTarget(rng, curX, kickRight, players, curIdx, prevIdx);
+    targets.push(target); if (target.type === 'goal') break;
+    prevIdx = curIdx; curX = target.x; curIdx = target.index;
+  }
+  return targets;
+}
+function buildStops(players, startIdx, targets) {
+  const stops = [{ type: 'player', index: startIdx, x: players[startIdx].x }, ...targets];
+  for (let i = 0; i < stops.length; i++) {
+    if (stops[i].type === 'goal') { stops[i].y = PLAYER_POINT_LOW_HEIGHT; }
+    else {
+      const off = players[stops[i].index].team === 'B' ? TEAM_B_HEIGHT_OFFSET : 0;
+      if (i === 0) { stops[i].y = PLAYER_POINT_LOW_HEIGHT + off; }
+      else {
+        const dx = Math.abs(stops[i + 1].x - stops[i].x);
+        stops[i].y = (dx > LONG_SHOT_THRESHOLD ? PLAYER_POINT_LOW_HEIGHT : PLAYER_POINT_HIGH_HEIGHT) + off;
+      }
+    }
+  }
+  return stops;
+}
+function simulateSummary(seed) {
+  const rng = new FlightRandom(); rng.seed(seed);
+  const players = buildPlayers(); const startTeam = rng.random(2) === 0 ? 'A' : 'B';
+  const startIdx = findCenterPlayer(players, startTeam);
+  const bonuses = generateBonusPositions(rng).map(b => ({ ...b, collected: false }));
+  const targets = buildTravelList(rng, players, startIdx);
+  const isGoal = rng.random(2) === 0;
+  const stops = buildStops(players, startIdx, targets);
+  const lastStop = stops[stops.length - 1];
+  const landed = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
+  let ballX = stops[0].x, ballY = stops[0].y;
+  let mult = 1, hits = 0, posHits = 0, negHits = 0, peakAlt = 0, totalDist = 0, ticks = 0;
+  for (let s = 0; s < stops.length - 1 && ticks < TICK_LIMIT; s++) {
+    const to = stops[s + 1]; const dx = Math.abs(to.x - ballX);
+    const sPeak = minPeakForSpeed(ballX, ballY, to.x, to.y);
+    const pMin = Math.max(ARC_PEAK_MIN, Math.ceil(sPeak));
+    const pMax = Math.max(pMin, Math.min(ARC_PEAK_MAX, 2500 + dx));
+    const peak = pMin + rng.random(Math.max(1, pMax - pMin));
+    const V = vFromPeak(peak, ballY);
+    const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
+    let vy = initVy;
+    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+      const prevBX = ballX, prevBY = ballY;
+      ballX += vx; ballY += vy; vy -= 1; totalDist += Math.abs(vx); ticks++;
+      if (ballY > peakAlt) peakAlt = ballY;
+      for (const b of bonuses) {
+        if (b.collected) continue;
+        if (segDistSq(prevBX, prevBY, ballX, ballY, b.x, b.y) > BONUS_HIT_R2) continue;
+        b.collected = true; hits++;
+        if (b.mult < 1) negHits++; else posHits++;
+        if (b.add) mult += b.add; if (b.mult !== 1) mult *= b.mult;
+        mult = Math.min(MAX_MULT, Math.max(0, mult));
+      }
+    }
+    ballX = to.x; ballY = to.y;
+  }
+  let totalShots = 0, shotsA = 0, shotsB = 0, dirChanges = 0, prevTeam = null;
+  const sc = new Map();
+  for (const s of stops) {
+    if (s.type === 'player') {
+      const team = players[s.index].team; totalShots++;
+      if (team === 'A') shotsA++; else shotsB++;
+      if (prevTeam !== null && team !== prevTeam) dirChanges++;
+      prevTeam = team; sc.set(s.index, (sc.get(s.index) || 0) + 1);
+    }
+  }
+  return {
+    seed, startTeam, objectsHit: hits, finalMultiplier: mult,
+    totalMultiplier: landed ? mult : 0, outcome: landed ? 'win' : 'crash',
+    distance: totalDist, peakAltitude: peakAlt, ticks,
+    hitsPerTick: ticks > 0 ? hits / ticks : 0,
+    bonusesCollected: posHits + negHits,
+    positiveBonuses: posHits, negativeBonuses: negHits,
+    totalShots, shotsA, shotsB, dirChanges,
+    shots: Math.max(0, ...sc.values()),
+  };
+}
+function passesFilters(s, filters) {
+  if (filters.minHits != null && s.objectsHit < filters.minHits) return false;
+  if (filters.maxHits != null && s.objectsHit > filters.maxHits) return false;
+  if (filters.minMultiplier != null && s.finalMultiplier < filters.minMultiplier) return false;
+  if (filters.maxMultiplier != null && s.finalMultiplier > filters.maxMultiplier) return false;
+  if (filters.outcome && filters.outcome !== 'any' && s.outcome !== filters.outcome) return false;
+  if (filters.minDistance != null && s.distance < filters.minDistance) return false;
+  if (filters.maxDistance != null && s.distance > filters.maxDistance) return false;
+  if (filters.minTicks != null && s.ticks < filters.minTicks) return false;
+  if (filters.maxTicks != null && s.ticks > filters.maxTicks) return false;
+  if (filters.minHpt != null && s.hitsPerTick < filters.minHpt) return false;
+  if (filters.maxHpt != null && s.hitsPerTick > filters.maxHpt) return false;
+  if (filters.minPosBonuses != null && s.positiveBonuses < filters.minPosBonuses) return false;
+  if (filters.maxPosBonuses != null && s.positiveBonuses > filters.maxPosBonuses) return false;
+  if (filters.minNegBonuses != null && s.negativeBonuses < filters.minNegBonuses) return false;
+  if (filters.maxNegBonuses != null && s.negativeBonuses > filters.maxNegBonuses) return false;
+  if (filters.minTotalShots != null && s.totalShots < filters.minTotalShots) return false;
+  if (filters.maxTotalShots != null && s.totalShots > filters.maxTotalShots) return false;
+  if (filters.minShotsA != null && s.shotsA < filters.minShotsA) return false;
+  if (filters.maxShotsA != null && s.shotsA > filters.maxShotsA) return false;
+  if (filters.minShotsB != null && s.shotsB < filters.minShotsB) return false;
+  if (filters.maxShotsB != null && s.shotsB > filters.maxShotsB) return false;
+  if (filters.minDirChanges != null && s.dirChanges < filters.minDirChanges) return false;
+  if (filters.maxDirChanges != null && s.dirChanges > filters.maxDirChanges) return false;
+  if (filters.minShots != null && s.shots < filters.minShots) return false;
+  if (filters.maxShots != null && s.shots > filters.maxShots) return false;
+  if (filters.startTeam && s.startTeam !== filters.startTeam) return false;
+  return true;
+}
+const BATCH = 5000; const MAX_SEED = 4294967296;
+self.onmessage = function(e) {
+  const { filters, limit } = e.data; const results = [];
+  for (let seed = 0; seed < MAX_SEED; seed++) {
+    if (results.length >= limit) break;
+    const s = simulateSummary(seed);
+    if (passesFilters(s, filters)) results.push(s);
+    if (seed % BATCH === 0) self.postMessage({ type: 'progress', seed: seed, found: results.length });
+  }
+  self.postMessage({ type: 'done', results: results });
+};
+`;
+
+const workerBlob = new Blob([CURATED_WORKER_CODE], { type: 'application/javascript' });
+const workerUrl  = URL.createObjectURL(workerBlob);
+
+function buildFiltersFromState(state) {
+  const f = {};
+  const v = raw => { const n = parseFloat(raw); return isNaN(n) ? null : n; };
+
+  f.minHits       = v(state.minHits);
+  f.maxHits       = v(state.maxHits);
+  f.minMultiplier = v(state.minMult);
+  f.maxMultiplier = v(state.maxMult);
+  f.minDistance   = v(state.minDist);
+  f.maxDistance   = v(state.maxDist);
+  f.minTicks      = v(state.minTicks);
+  f.maxTicks      = v(state.maxTicks);
+  f.minHpt        = v(state.minHpt);
+  f.maxHpt        = v(state.maxHpt);
+  f.minPosBonuses  = v(state.minPosBonuses);
+  f.maxPosBonuses  = v(state.maxPosBonuses);
+  f.minNegBonuses  = v(state.minNegBonuses);
+  f.maxNegBonuses  = v(state.maxNegBonuses);
+  f.minTotalShots = v(state.minTotalShots);
+  f.maxTotalShots = v(state.maxTotalShots);
+  f.minShotsA     = v(state.minShotsA);
+  f.maxShotsA     = v(state.maxShotsA);
+  f.minShotsB     = v(state.minShotsB);
+  f.maxShotsB     = v(state.maxShotsB);
+  f.minDirChanges = v(state.minDirChanges);
+  f.maxDirChanges = v(state.maxDirChanges);
+  f.minShots      = v(state.minShots);
+  f.maxShots      = v(state.maxShots);
+
+  const oc = state.outcome;
+  if (oc && oc !== 'any') f.outcome = oc;
+  const st = state.startTeam;
+  if (st && st !== 'any') f.startTeam = st;
+
+  return f;
+}
+
+function stopCuratedWorkers() {
+  for (const w of curatedWorkers) w.terminate();
+  curatedWorkers = [];
+}
+
+function finalizeCuratedList(allResults, names) {
+  const LIMIT = 50;
+  const seedMap = new Map();
+  const warnings = [];
+
+  for (const { name, results } of allResults) {
+    curatedCache.set(name, results);
+    if (results.length < LIMIT) {
+      warnings.push(`Preset "${name}" found only ${results.length} seed${results.length !== 1 ? 's' : ''} (target: ${LIMIT}).`);
+    }
+    for (const m of results) {
+      if (seedMap.has(m.seed)) {
+        seedMap.get(m.seed).filterNames.push(name);
+      } else {
+        seedMap.set(m.seed, {
+          seed: m.seed,
+          startTeam: m.startTeam,
+          totalMultiplier: m.outcome === 'crash' ? 0 : m.totalMultiplier,
+          filterNames: [name],
+          weight: 1,
+        });
+      }
+    }
+  }
+
+  const list = [...seedMap.values()].sort((a, b) => a.seed - b.seed);
+  for (const entry of list) {
+    entry.filterNames = entry.filterNames.join(', ');
+  }
+
+  curatedResults = list;
+
+  btnBuildCurated.disabled = false;
+  btnStopCurated.hidden = true;
+
+  const scannedCount = allResults.filter(r => !r.cached).length;
+  const cachedCount  = allResults.length - scannedCount;
+  let statusParts = [`${list.length} unique seed${list.length !== 1 ? 's' : ''}`];
+  if (scannedCount > 0) statusParts.push(`${scannedCount} scanned`);
+  if (cachedCount > 0)  statusParts.push(`${cachedCount} from cache`);
+  curatedStatus.textContent = `Done. ${statusParts.join(', ')}.`;
+
+  if (warnings.length > 0) {
+    curatedWarnings.innerHTML = warnings.map(w => `<div>${w}</div>`).join('');
+  }
+
+  const table = renderCuratedTable(list, curatedTableWrap);
+  if (table) {
+    table.addEventListener('click', e => {
+      const row = e.target.closest('tr[data-seed]');
+      if (!row) return;
+      const seed = parseInt(row.dataset.seed, 10);
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanels.forEach(p => p.classList.remove('active'));
+      document.querySelector('[data-tab="tab-visualizer"]').classList.add('active');
+      $('tab-visualizer').classList.add('active');
+      runSingle(seed);
+    });
+  }
+
+  btnExportCurated.hidden = list.length === 0;
+  btnImportCurated.hidden = false;
+
+  saveCuratedToStorage();
+}
+
+async function buildCuratedList() {
+  stopCuratedWorkers();
+
+  const presets = loadPresets();
+  const names = Object.keys(presets).sort((a, b) => a.localeCompare(b));
+
+  if (names.length === 0) {
+    curatedStatus.textContent = 'No saved filter presets found. Save some presets in the Scanner tab first.';
+    return;
+  }
+
+  const cachedNames = names.filter(n => curatedCache.has(n));
+  let namesToScan = names;
+
+  if (cachedNames.length > 0) {
+    const msg = `${cachedNames.length} of ${names.length} preset(s) have cached results:\n` +
+      cachedNames.map(n => `  \u2022 "${n}" (${curatedCache.get(n).length} seeds)`).join('\n') +
+      '\n\nKeep cached results and only scan new presets?\n' +
+      '  OK = keep cache     Cancel = discard & rescan all';
+    if (confirm(msg)) {
+      namesToScan = names.filter(n => !curatedCache.has(n));
+    } else {
+      curatedCache.clear();
+    }
+  }
+
+  btnBuildCurated.disabled = true;
+  btnStopCurated.hidden = false;
+  btnExportCurated.hidden = true;
+  curatedWarnings.innerHTML = '';
+  curatedTableWrap.innerHTML = '';
+  curatedResults = null;
+
+  if (namesToScan.length === 0) {
+    const allResults = names.map(name => ({ name, results: curatedCache.get(name), cached: true }));
+    finalizeCuratedList(allResults, names);
+    return;
+  }
+
+  const LIMIT = 50;
+  const progress = {};
+  let completed = 0;
+
+  function updateStatus() {
+    curatedStatus.textContent = `Scanning ${namesToScan.length} preset(s) in parallel \u2014 ${completed}/${namesToScan.length} done` +
+      (cachedNames.length > 0 && curatedCache.size > 0 ? ` (${names.length - namesToScan.length} cached)` : '');
+  }
+
+  const workerPromises = namesToScan.map(name => new Promise(resolve => {
+    const filters = buildFiltersFromState(presets[name]);
+    const worker = new Worker(workerUrl);
+    curatedWorkers.push(worker);
+
+    progress[name] = { seed: 0, found: 0, done: false };
+
+    worker.onmessage = (e) => {
+      const msg = e.data;
+      if (msg.type === 'progress') {
+        progress[name] = { seed: msg.seed, found: msg.found, done: false };
+        updateStatus();
+      } else if (msg.type === 'done') {
+        progress[name] = { seed: 0, found: msg.results.length, done: true };
+        completed++;
+        updateStatus();
+        resolve({ name, results: msg.results, cached: false });
+      }
+    };
+
+    worker.onerror = () => {
+      progress[name] = { seed: 0, found: 0, done: true };
+      completed++;
+      updateStatus();
+      resolve({ name, results: [], cached: false });
+    };
+
+    worker.postMessage({ filters, limit: LIMIT });
+  }));
+
+  updateStatus();
+
+  const scannedResults = await Promise.all(workerPromises);
+  stopCuratedWorkers();
+
+  const allResults = names.map(name => {
+    const scanned = scannedResults.find(r => r.name === name);
+    if (scanned) return scanned;
+    return { name, results: curatedCache.get(name), cached: true };
+  });
+
+  finalizeCuratedList(allResults, names);
+}
+
+btnBuildCurated.addEventListener('click', buildCuratedList);
+btnStopCurated.addEventListener('click', () => {
+  stopCuratedWorkers();
+  curatedStatus.textContent = 'Build aborted.';
+  btnBuildCurated.disabled = false;
+  btnStopCurated.hidden = true;
+});
+
+btnExportCurated.addEventListener('click', () => {
+  if (!curatedResults || curatedResults.length === 0) return;
+  const exportData = curatedResults.map(r => ({
+    seed: r.seed,
+    startTeam: r.startTeam,
+    totalMultiplier: r.totalMultiplier,
+    filters: r.filterNames.split(', '),
+    weight: r.weight,
+  }));
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'curated-seeds.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+btnImportCurated.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!Array.isArray(data)) throw new Error('Expected an array');
+        const list = data.map(r => ({
+          seed: Number(r.seed),
+          startTeam: String(r.startTeam ?? ''),
+          totalMultiplier: Number(r.totalMultiplier ?? 0),
+          filterNames: Array.isArray(r.filters) ? r.filters.join(', ') : String(r.filterNames ?? r.filters ?? ''),
+          weight: Number(r.weight ?? 1),
+        }));
+        if (list.some(r => isNaN(r.seed))) throw new Error('Invalid seed value(s)');
+
+        curatedResults = list;
+        curatedCache.clear();
+        saveCuratedToStorage();
+        restoreCuratedUI();
+        curatedStatus.textContent = `Imported ${list.length} seed${list.length !== 1 ? 's' : ''}.`;
+        curatedWarnings.innerHTML = '';
+      } catch (err) {
+        alert('Import failed: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+  input.click();
+});
+
+function restoreCuratedUI() {
+  if (!curatedResults || curatedResults.length === 0) return;
+  btnExportCurated.hidden = false;
+  btnImportCurated.hidden = false;
+  curatedStatus.textContent = `Loaded ${curatedResults.length} seed${curatedResults.length !== 1 ? 's' : ''} from previous session.`;
+  const table = renderCuratedTable(curatedResults, curatedTableWrap);
+  if (table) {
+    table.addEventListener('click', e => {
+      const row = e.target.closest('tr[data-seed]');
+      if (!row) return;
+      const seed = parseInt(row.dataset.seed, 10);
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabPanels.forEach(p => p.classList.remove('active'));
+      document.querySelector('[data-tab="tab-visualizer"]').classList.add('active');
+      $('tab-visualizer').classList.add('active');
+      runSingle(seed);
+    });
+  }
+}
+
+loadCuratedFromStorage();
+restoreCuratedUI();
 
 // ─── Advanced Visualizer ─────────────────────────────────────────────────────
 const advSeedInput    = $('adv-seed-input');
@@ -2151,9 +3056,8 @@ function advLoop(ts) {
   let slowFactor = 1;
   if (advResult.lastShotGoalX != null && advFrame >= 0) {
     const ballX = advResult.path[Math.min(advFrame, advResult.path.length - 1)]?.dist ?? 0;
-    const viewW = (advCanvas.parentElement?.clientWidth || window.innerWidth) * 10;
     const distToGoal = Math.abs(advResult.lastShotGoalX - ballX);
-    if (distToGoal <= viewW && advFrame >= advResult.lastShotStartFrame) {
+    if (distToGoal <= 1200 && advFrame >= advResult.lastShotStartFrame) {
       slowFactor = 0.35;
     }
   }
@@ -2216,7 +3120,13 @@ function advRun(seedOverride) {
   advStart();
 }
 
+const advBtnCuratedRandom = $('adv-btn-curated-random');
+
 advBtnRun.addEventListener('click', () => advRun());
+advBtnCuratedRandom.addEventListener('click', () => {
+  const seed = pickCuratedSeed();
+  if (seed != null) advRun(seed);
+});
 advSeedInput.addEventListener('keydown', e => { if (e.key === 'Enter') advRun(); });
 
 advBtnPlay.addEventListener('click', () => {
