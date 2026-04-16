@@ -75,7 +75,7 @@ function drawTag(ctx, x, y, label, isHarm, highlight) {
 
 // ── Main render ─────────────────────────────────────────────────────────────
 
-export function renderAdvanced(result, canvas, frame) {
+export function renderAdvanced(result, canvas, frame, roundElapsed) {
   if (!advReady) return;
 
   const CW = canvas.parentElement?.clientWidth || window.innerWidth;
@@ -163,18 +163,25 @@ export function renderAdvanced(result, canvas, frame) {
     ctx.drawImage(img, drawX, tY, sW, sH);
   }
 
-  // ── Missed bonuses ────────────────────────────────────────────────────────
-  for (const m of result.missed) {
-    if (m.marker || !m.label) continue;
-    drawTag(ctx, w2x(m.dist, camL), w2y(m.alt), m.label, m.isRocket, false);
-  }
+  // ── Bonuses (with fade-in during playback) ────────────────────────────────
+  const tagAlpha = drawAll ? 1 : Math.min(1, (roundElapsed ?? Infinity) / 1.0);
+  if (tagAlpha > 0.001) {
+    const prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = tagAlpha;
 
-  // ── Collected bonuses ─────────────────────────────────────────────────────
-  for (const c of result.collected) {
-    const hit = drawAll || (c.frame != null ? c.frame <= lastIdx : false);
-    const recentHit = hit && !drawAll && c.frame != null
-      && (lastIdx - c.frame) < HIGHLIGHT_DURATION;
-    drawTag(ctx, w2x(c.dist, camL), w2y(c.alt), c.label, c.isRocket, recentHit);
+    for (const m of result.missed) {
+      if (m.marker || !m.label) continue;
+      drawTag(ctx, w2x(m.dist, camL), w2y(m.alt), m.label, m.isRocket, false);
+    }
+
+    for (const c of result.collected) {
+      const hit = drawAll || (c.frame != null ? c.frame <= lastIdx : false);
+      const recentHit = hit && !drawAll && c.frame != null
+        && (lastIdx - c.frame) < HIGHLIGHT_DURATION;
+      drawTag(ctx, w2x(c.dist, camL), w2y(c.alt), c.label, c.isRocket, recentHit);
+    }
+
+    ctx.globalAlpha = prevAlpha;
   }
 
   // ── Ball (with motion trail at high speeds) ────────────────────────────────

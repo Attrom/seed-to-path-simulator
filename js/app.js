@@ -760,6 +760,7 @@ let advPlaying = false;
 let advRafId   = null;
 let advAccum   = 0;
 let advLastTs  = null;
+let advRoundTime = Infinity;
 
 function advTotal() { return advResult ? advResult.path.length : 0; }
 function advSpeed() { return parseFloat(advSpeedSelect.value) || 1; }
@@ -773,7 +774,7 @@ function advSync() {
 
 function advDraw() {
   if (!advResult) return;
-  renderAdvanced(advResult, advCanvas, advFrame);
+  renderAdvanced(advResult, advCanvas, advFrame, advRoundTime);
 }
 
 function advStop() {
@@ -786,8 +787,9 @@ function advStop() {
 function advStart() {
   if (!advResult || advTotal() === 0) return;
   if (advFrame < 0 || advFrame >= advTotal() - 1) {
-    advFrame = 0;
-    advAccum = 0;
+    advFrame     = 0;
+    advAccum     = 0;
+    advRoundTime = 0;
   }
   advPlaying = true;
   advBtnPlay.textContent = '\u23f8';
@@ -801,6 +803,8 @@ function advLoop(ts) {
   if (advLastTs === null) advLastTs = ts;
   const dt = (ts - advLastTs) / 1000;
   advLastTs = ts;
+
+  advRoundTime += dt;
 
   let slowFactor = 1;
   if (advResult.lastShotGoalX != null && advFrame >= 0) {
@@ -862,8 +866,9 @@ function advRun(seedOverride) {
     }
   }
 
-  advFrame  = 0;
-  advAccum  = 0;
+  advFrame     = 0;
+  advAccum     = 0;
+  advRoundTime = 0;
   advDraw();
   advSync();
   advStart();
@@ -887,6 +892,7 @@ advScrubber.addEventListener('input', () => {
   advStop();
   const v = parseInt(advScrubber.value, 10);
   advFrame = v >= advTotal() - 1 ? -1 : v;
+  advRoundTime = Infinity;
   advDraw();
   advSync();
 });
