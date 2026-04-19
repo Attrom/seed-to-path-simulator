@@ -33,6 +33,9 @@
  *   landed          (boolean)  Did the player/bettor WIN this round?
  *   isGoal          (boolean)  Was the final shot a goal? (win/loss depends
  *                              on WHICH goal — see field-config.js header)
+ *   shotZone        ('low'|'high'|'above')
+ *                              Where the final shot targeted the goalpost.
+ *                              'low'/'high' = at the keeper, 'above' = over the crossbar.
  *   totalMult       (number)   Final multiplier if won, 0 if lost.
  *
  *   path            (array)    The ball's trajectory, one entry per simulation
@@ -87,7 +90,7 @@
  *       so the first tick of the NEXT arc is at path[stops[i].arrivalFrame].
  *
  *   events          (array)    Discrete labeled moments in chronological order.
- *     [i].label     (string)   'kickoff', bonus label, 'goal', or 'saved'.
+ *     [i].label     (string)   'kickoff', bonus label, 'goal', 'saved', or 'missed'.
  *     [i].mult      (number)   Multiplier at this event.
  *     [i].isLoss    (boolean)  true if mult dropped vs. previous event.
  *
@@ -114,7 +117,8 @@
  *     3. buildTravelList iteratively picks the next pass target or goal
  *        using weighted random selection.  Closer players & goals nearer
  *        to the kicker's forward direction are more likely.
- *     4. RNG decides goal vs save for the final shot.
+ *     4. RNG picks a shot zone (low/high/above) and, for low/high,
+ *        decides goal vs save.
  *     5. buildStops assigns a receive/shoot y-height to each stop based on
  *        the outgoing pass distance (long = low, short = high).
  *
@@ -153,6 +157,8 @@ const PLAYER_POINT_HIGH_HEIGHT = fieldConfig.playerPointHighHeight;
 const TEAM_B_HEIGHT_OFFSET     = fieldConfig.teamBHeightOffset;
 const MAX_MULTIPLIER_HEIGHT    = fieldConfig.maxMultiplierHeight;
 const MIN_MULTIPLIER_HEIGHT    = fieldConfig.minMultiplierHeight;
+const GOALPOST_HEIGHT          = fieldConfig.goalpostHeight;
+const GOAL_ABOVE_HEIGHT        = GOALPOST_HEIGHT + 500;
 
 // ─── Algorithm constants ─────────────────────────────────────────────────────
 // These tune the simulation behaviour.  Changing any of them will produce
@@ -393,14 +399,16 @@ function buildTravelList(rng, players, startIdx) {
 
 // Converts the target list into a full stop sequence (kickoff player + targets)
 // and assigns each stop a y-height based on the outgoing pass distance.
-function buildStops(players, startIdx, targets) {
+function buildStops(players, startIdx, targets, shotZone) {
   const stops = [
     { type: 'player', index: startIdx, x: players[startIdx].x },
     ...targets,
   ];
   for (let i = 0; i < stops.length; i++) {
     if (stops[i].type === 'goal') {
-      stops[i].y = PLAYER_POINT_LOW_HEIGHT;
+      if (shotZone === 'above')     stops[i].y = GOAL_ABOVE_HEIGHT;
+      else if (shotZone === 'high') stops[i].y = PLAYER_POINT_HIGH_HEIGHT;
+      else                          stops[i].y = PLAYER_POINT_LOW_HEIGHT;
     } else {
       const off = players[stops[i].index].team === 'B' ? TEAM_B_HEIGHT_OFFSET : 0;
       if (i === 0) {
@@ -431,6 +439,7 @@ function buildStops(players, startIdx, targets) {
 //   events       – [{label, mult, isLoss}, ...]
 //   landed       – boolean (did the player win?)
 //   isGoal       – boolean (was the final shot a goal? — determines win/loss per goal side)
+//   shotZone     – 'low'|'high'|'above' (where the final shot targeted)
 //   totalMult    – final multiplier if won, else 0
 //   ticks, shipDist, peakAlt, bonusesCollected, positiveBonuses, negativeBonuses,
 //   totalShots, shotsA, shotsB, dirChanges, shots,
@@ -447,10 +456,15 @@ export function simulate(seed) {
 
   // Phase 1 — travel list (target-selection RNG)
   const targets  = buildTravelList(rng, players, startIdx);
-  const isGoal   = rng.random(2) === 0;
-  const stops    = buildStops(players, startIdx, targets);
+
+  // Shot zone: LOW (40%), HIGH (40%), or ABOVE the crossbar (20%)
+  const shotZoneRoll = rng.random(5);
+  const shotZone = shotZoneRoll < 2 ? 'low' : shotZoneRoll < 4 ? 'high' : 'above';
+  const isGoal   = shotZone === 'above' ? false : rng.random(2) === 0;
+
+  const stops    = buildStops(players, startIdx, targets, shotZone);
   const lastStop = stops[stops.length - 1];
-  // Goal A: saved = cashout, goal = crash.  Goal B: goal = cashout, saved = crash.
+  // Goal A: saved/missed = cashout, goal = crash.  Goal B: goal = cashout, saved/missed = crash.
   const landed   = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
 
   // Phase 2 — simulate arcs (arc-height RNG)
@@ -561,7 +575,8 @@ export function simulate(seed) {
     ballY = to.y;
   }
 
-  pushEv(isGoal ? 'goal' : 'saved', landed ? mult : 0);
+  const outcomeLabel = shotZone === 'above' ? 'missed' : isGoal ? 'goal' : 'saved';
+  pushEv(outcomeLabel, landed ? mult : 0);
 
   let totalShots = 0, shotsA = 0, shotsB = 0, dirChanges = 0;
   let prevTeam = null;
@@ -579,7 +594,7 @@ export function simulate(seed) {
 
   return {
     seed, startTeam, path, bonuses, collected, stops, events,
-    landed, isGoal,
+    landed, isGoal, shotZone,
     totalMult: landed ? mult : 0,
     ticks,
     shipDist: totalDist,
@@ -614,8 +629,10 @@ export function simulateSummary(seed) {
 
   // Phase 1 — travel list
   const targets  = buildTravelList(rng, players, startIdx);
-  const isGoal   = rng.random(2) === 0;
-  const stops    = buildStops(players, startIdx, targets);
+  const shotZoneRoll = rng.random(5);
+  const shotZone = shotZoneRoll < 2 ? 'low' : shotZoneRoll < 4 ? 'high' : 'above';
+  const isGoal   = shotZone === 'above' ? false : rng.random(2) === 0;
+  const stops    = buildStops(players, startIdx, targets, shotZone);
   const lastStop = stops[stops.length - 1];
   const landed   = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
 

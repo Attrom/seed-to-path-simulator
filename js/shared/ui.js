@@ -27,7 +27,7 @@ export function updateEventsStrip(result, container) {
     const el = document.createElement('span');
     const START_EV = ['takeoff', 'kickoff'];
     const WIN_EV   = ['landed', 'goal'];
-    const LOSS_EV  = ['crashed', 'saved'];
+    const LOSS_EV  = ['crashed', 'saved', 'missed'];
     if (START_EV.includes(ev.label))      el.className = 'ev ev-start';
     else if (WIN_EV.includes(ev.label))   el.className = 'ev ev-end-win';
     else if (LOSS_EV.includes(ev.label))  el.className = 'ev ev-end-crash';

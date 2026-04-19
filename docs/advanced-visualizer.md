@@ -56,7 +56,15 @@ The renderer compares the current playback frame against `c.frame` to decide if 
 
 ### `result.events` — Discrete labeled moments
 
-Array of `{ label, mult, isLoss }`. The last event's `label` is either `'goal'` or `'saved'`, which the playback loop checks to decide whether to extend the ball path past the goalpost.
+Array of `{ label, mult, isLoss }`. The last event's `label` is `'goal'`, `'saved'`, or `'missed'` (ball over the crossbar). The playback loop checks this to decide whether to extend the ball path past the goalpost.
+
+### `result.shotZone` — Final shot target zone
+
+One of `'low'`, `'high'`, or `'above'`. Indicates where the final shot was aimed relative to the goalkeeper/goalpost:
+
+- `'low'` — at the keeper's feet (ball arrives at 790 world units). Keeper may save or concede.
+- `'high'` — at the keeper's upper body (ball arrives at 1,950 world units). Keeper may save or concede.
+- `'above'` — over the crossbar (ball arrives at 2,730 world units, above the goalpost). Always a miss — counts as WIN on Team A's side, LOSE on Team B's side.
 
 ### `result.lastShotStartFrame`, `result.lastShotPeakFrame`, `result.lastShotGoalX`
 
@@ -131,7 +139,10 @@ The logic (in `buildStops` in `core.js`):
 
 1. The **kickoff player** (first stop) always uses the low height — the ball starts low.
 2. For every other player stop, the algorithm looks at the **outgoing** pass distance (horizontal distance to the *next* stop). If it's greater than 7,000 world units, the player receives/shoots from the low height. If it's 7,000 or less, the player uses the high height.
-3. **Goal stops** always use the low height (790 units) — the ball arrives at the goalpost low.
+3. **Goal stops** use one of three heights determined by the shot zone (`shotZone`):
+   - `'low'` → 790 world units (keeper's feet)
+   - `'high'` → 1,950 world units (keeper's upper body)
+   - `'above'` → 2,730 world units (over the crossbar, above the goalpost's 2,230-unit height)
 
 The reasoning: short passes between nearby players produce steep, high arcs, so the ball naturally arrives higher. Long passes across the field produce flatter arcs that arrive lower. The two discrete heights approximate this physical intuition.
 
@@ -190,7 +201,7 @@ Each frame, `renderAdvanced()` draws in this order:
 
 8. **Score panel** — `score_panel.png` fixed to viewport top-center (doesn't move with the camera). Displays the current multiplier in white text, turning green on win or red on crash at the end.
 
-9. **End marker** — a football emoji (⚽) for goals, explosion (💥) for saves/crashes, drawn at the ball's final position.
+9. **End marker** — a football emoji (⚽) for goals, explosion (💥) for saves/misses/crashes, drawn at the ball's final position.
 
 ---
 
@@ -198,7 +209,7 @@ Each frame, `renderAdvanced()` draws in this order:
 
 ### Starting a simulation
 
-`advRun(seed)` calls `activeGame.simulate(seed)` to get the result. If the outcome is a goal (last event label is `'goal'`), it extends the path by continuing the ball's velocity and gravity past the goalpost until altitude reaches 0 — this is a visual-only extension, not part of the core simulation data.
+`advRun(seed)` calls `activeGame.simulate(seed)` to get the result. If the outcome is a goal or a miss (last event label is `'goal'` or `'missed'`), it extends the path by continuing the ball's velocity and gravity past the goalpost until altitude reaches 0 — this is a visual-only extension, not part of the core simulation data.
 
 ### Frame advancement
 
@@ -249,12 +260,18 @@ The simulation in `core.js` builds the path by stepping through **arcs between s
 
 1. **Stops** are an ordered sequence of player positions and a final goalpost, determined by the weighted target-selection algorithm in Phase 1.
 
-2. For each consecutive pair of stops, an arc is computed:
+2. For each consecutive pair of stops, a **symmetric parabolic arc** is computed:
    - A random peak height is chosen (seed-dependent).
    - Initial vertical velocity `V` is derived from the peak.
-   - Horizontal velocity `vx` and flight duration `T` are computed so the ball lands exactly at the next stop.
+   - Geometric horizontal velocity `vx = dx / T` and flight duration `T` define the parabola shape.
+   - The actual tick count is `T_act = round(T / SPEED_MULT)` where `SPEED_MULT = 1.2`, so the ball completes arcs 20% faster than the raw geometry would imply.
 
-3. Each tick of the arc: `ballX += vx`, `ballY += vy`, `vy -= 1` (discrete gravity). The position is pushed to `path[]`.
+3. Each tick, the ball's position is computed **parametrically** from the parabola rather than with incremental velocity steps. A progress function `p(t) ∈ [0, 1]` maps the current tick to a point on the symmetric curve:
+
+   - **Ascent phase** (first 35% of progress): exponential drag — `p(t) = (1 − DRAG_RETAIN^t) / denom`. The ball starts with a powerful kick burst and gradually decelerates. `BALL_DRAG = 0.008` per tick.
+   - **Cruise phase** (remaining 65%): constant speed — `p(t) = peakProg + linearRate × (t − peakTick)`. Once the ball reaches 35% of the arc (`DRAG_CUTOFF`), the per-tick progress rate is locked for the rest of the arc.
+
+   The ball position is then: `x = arcFromX + p·T·vx`, `y = arcFromY + V·s − s·(s−1)/2` where `s = p·T`. This always lies on the original symmetric parabola.
 
 4. Bonus collision is checked each tick using segment-to-point distance (the movement segment from the previous position to the current position, against each bonus's position, with a 150-unit hit radius).
 

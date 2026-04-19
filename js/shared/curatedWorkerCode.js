@@ -44,6 +44,8 @@ const MIN_MULTIPLIER_HEIGHT    = 2450;
 const PLAYER_POINT_LOW_HEIGHT  = 790;
 const PLAYER_POINT_HIGH_HEIGHT = 1950;
 const TEAM_B_HEIGHT_OFFSET     = 60;
+const GOALPOST_HEIGHT          = 2230;
+const GOAL_ABOVE_HEIGHT        = GOALPOST_HEIGHT + 500;
 const CENTER_X = FIELD_WIDTH / 2;
 const GOAL_A_X = CENTER_X - GOAL_POST_POSITION;
 const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
@@ -201,11 +203,13 @@ function buildTravelList(rng, players, startIdx) {
   return targets;
 }
 
-function buildStops(players, startIdx, targets) {
+function buildStops(players, startIdx, targets, shotZone) {
   const stops = [{ type: 'player', index: startIdx, x: players[startIdx].x }, ...targets];
   for (let i = 0; i < stops.length; i++) {
     if (stops[i].type === 'goal') {
-      stops[i].y = PLAYER_POINT_LOW_HEIGHT;
+      if (shotZone === 'above')     stops[i].y = GOAL_ABOVE_HEIGHT;
+      else if (shotZone === 'high') stops[i].y = PLAYER_POINT_HIGH_HEIGHT;
+      else                          stops[i].y = PLAYER_POINT_LOW_HEIGHT;
     } else {
       const off = players[stops[i].index].team === 'B' ? TEAM_B_HEIGHT_OFFSET : 0;
       if (i === 0) { stops[i].y = PLAYER_POINT_LOW_HEIGHT + off; }
@@ -227,8 +231,10 @@ function simulateSummary(seed) {
   const startIdx  = findCenterPlayer(players, startTeam);
   const bonuses = generateBonusPositions(rng).map(b => ({ ...b, collected: false }));
   const targets  = buildTravelList(rng, players, startIdx);
-  const isGoal   = rng.random(2) === 0;
-  const stops    = buildStops(players, startIdx, targets);
+  const shotZoneRoll = rng.random(5);
+  const shotZone = shotZoneRoll < 2 ? 'low' : shotZoneRoll < 4 ? 'high' : 'above';
+  const isGoal   = shotZone === 'above' ? false : rng.random(2) === 0;
+  const stops    = buildStops(players, startIdx, targets, shotZone);
   const lastStop = stops[stops.length - 1];
   const landed   = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
   let ballX = stops[0].x, ballY = stops[0].y;

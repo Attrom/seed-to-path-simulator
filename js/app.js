@@ -848,9 +848,9 @@ function advRun(seedOverride) {
   }
   advResult = activeGame.simulate(seed);
 
-  // On goal outcomes, extend the path past the goalpost until the ball hits the ground
+  // On goal/missed outcomes, extend the path past the goalpost until the ball hits the ground
   const lastEv = advResult.events[advResult.events.length - 1];
-  if (lastEv && lastEv.label === 'goal' && advResult.path.length >= 2) {
+  if (lastEv && (lastEv.label === 'goal' || lastEv.label === 'missed') && advResult.path.length >= 2) {
     const p = advResult.path;
     const n = p.length - 1;
     const vx = p[n].dist - p[n - 1].dist;
