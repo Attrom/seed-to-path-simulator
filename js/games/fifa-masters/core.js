@@ -124,8 +124,13 @@
  *        capped so short shots don't fly unrealistically high.
  *     2. Initial vertical velocity (V) is derived from the peak.
  *     3. Horizontal velocity (vx) and flight duration (T) are computed so
- *        the ball lands exactly at the target stop.
- *     4. The ball is stepped tick-by-tick (ballX += vx, ballY += vy, vy -= 1).
+ *        the ball lands exactly at the target stop.  The arc geometry is
+ *        a symmetric parabola: y(s) = fromY + V·s − s·(s−1)/2.
+ *     4. The ball is stepped tick-by-tick along the parabola with
+ *        piecewise speed easing:
+ *          Ascent:  drag-based progress (fast kick burst, decelerating)
+ *          Descent: constant-speed progress (locked after the peak)
+ *        Always follows the same symmetric curve.
  *        Each tick is pushed to path[] and tested against all uncollected
  *        bonuses for collision (segment-to-point distance ≤ 150 world units).
  *     5. After all ticks for an arc, the ball is snapped to the exact stop
@@ -161,7 +166,12 @@ const TICK_LIMIT     = 20000;        // safety cap — simulation aborts if exce
 
 const ARC_PEAK_MIN   = 2500;  // minimum arc peak height (world units above ground)
 const ARC_PEAK_MAX   = 5000;  // maximum arc peak height (capped further by shot distance)
-const MAX_BALL_VX    = 180;   // max horizontal velocity per tick (world units)
+const ARC_VX_LIMIT   = 180;   // max geometric vx used to size arc peaks (not a speed cap)
+
+const BALL_DRAG      = 0.01; // fraction of speed lost per tick during ascent (kick burst)
+const DRAG_RETAIN    = 1 - BALL_DRAG; // fraction retained each tick (0.992)
+const SPEED_MULT     = 1.1;  // overall ball speed multiplier (>1 = faster)
+const DRAG_CUTOFF    = 0.35; // fraction of arc where drag stops and constant speed begins
 
 const GOAL_W_POW     = 6;     // exponent for goalpost targeting weight (proximity^POW)
 const GOAL_W_SCALE   = 96;    // scale factor for goalpost weight
@@ -318,12 +328,19 @@ function chooseTarget(rng, kickerX, kickRight, players, kickerIdx, prevIdx) {
 }
 
 // ─── Arc computation ────────────────────────────────────────────────────────
-// Physics model:  y(t) = fromY + V*t − t*(t−1)/2   (discrete gravity, vy -= 1/tick)
-// Peak altitude  = fromY + V*(V+1)/2
-// vFromPeak      → derives initial vy from a desired peak height.
-// minPeakForSpeed → minimum peak so horizontal speed stays ≤ MAX_BALL_VX.
-// computeArc     → given initial vy (V), computes flight time T and horizontal
-//                  velocity vx so the ball lands exactly at the target.
+// Geometry:  y(s) = fromY + V·s − s·(s−1)/2   (continuous parabola)
+// Peak altitude = fromY + V·(V+1)/2
+// vFromPeak     → derives initial vy (V) from a desired peak height.
+// minPeakForSpeed → minimum peak so the geometric vx stays ≤ ARC_VX_LIMIT.
+// computeArc    → given V, computes flight duration T and geometric vx = dx/T.
+//
+// Speed model (applied in the tick loop, not here):
+//   Ascent  — exponential drag:  p(t) = (1 − DRAG_RETAIN^t) / denom
+//             Ball starts fast (kick burst) and decelerates up to the peak.
+//   Descent — constant speed:    p(t) = peakP + linearRate · (t − peakTick)
+//             After the peak the ball's progress rate freezes, so oX speed
+//             stays constant while gravity handles oY naturally.
+//   Ball position at tick t = parabola sampled at s = p(t) · T.
 
 function vFromPeak(peak, fromY) {
   const rel = peak - fromY;
@@ -334,7 +351,7 @@ function minPeakForSpeed(fromX, fromY, targetX, targetY) {
   const absDx = Math.abs(targetX - fromX);
   if (absDx === 0) return 0;
   const dy = targetY - fromY;
-  let Tmin = Math.ceil(absDx / MAX_BALL_VX);
+  let Tmin = Math.ceil(absDx / ARC_VX_LIMIT);
   if (dy > 0 && Tmin * Tmin <= 2 * dy) {
     Tmin = Math.ceil(Math.sqrt(2 * dy)) + 1;
   }
@@ -475,14 +492,39 @@ export function simulate(seed) {
     const peak     = pMin + rng.random(Math.max(1, pMax - pMin));
     const V        = vFromPeak(peak, ballY);
     const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
+    const T_act     = Math.max(1, Math.round(T / SPEED_MULT));
 
-    let vy = initVy;
-    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+    const arcFromX  = ballX;
+    const arcFromY  = ballY;
+    const rT        = Math.pow(DRAG_RETAIN, T_act);
+    const denom     = 1 - rT;
+    let hitPeak     = false;
+    let peakProg    = 0;
+    let peakTick    = 0;
+    let linearRate  = 0;
+
+    for (let step = 0; step < T_act && ticks < TICK_LIMIT; step++) {
       const prevBX = ballX, prevBY = ballY;
-      ballX += vx;
-      ballY += vy;
-      vy    -= 1;
-      totalDist += Math.abs(vx);
+      const t = step + 1;
+
+      let p;
+      if (!hitPeak) {
+        p = denom < 1e-12 ? t / T_act : (1 - Math.pow(DRAG_RETAIN, t)) / denom;
+        if (p >= DRAG_CUTOFF) {
+          hitPeak    = true;
+          peakProg   = p;
+          peakTick   = t;
+          linearRate = T_act > t ? (1 - peakProg) / (T_act - t) : 0;
+        }
+      } else {
+        p = peakProg + linearRate * (t - peakTick);
+      }
+
+      const s = p * T;
+      ballX = arcFromX + s * vx;
+      ballY = arcFromY + V * s - s * (s - 1) / 2;
+
+      totalDist += Math.abs(ballX - prevBX);
       ticks++;
 
       if (ballY > peakAlt) peakAlt = ballY;
@@ -598,14 +640,39 @@ export function simulateSummary(seed) {
     const peak     = pMin + rng.random(Math.max(1, pMax - pMin));
     const V        = vFromPeak(peak, ballY);
     const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
+    const T_act     = Math.max(1, Math.round(T / SPEED_MULT));
 
-    let vy = initVy;
-    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+    const arcFromX  = ballX;
+    const arcFromY  = ballY;
+    const rT        = Math.pow(DRAG_RETAIN, T_act);
+    const denom     = 1 - rT;
+    let hitPeak     = false;
+    let peakProg    = 0;
+    let peakTick    = 0;
+    let linearRate  = 0;
+
+    for (let step = 0; step < T_act && ticks < TICK_LIMIT; step++) {
       const prevBX = ballX, prevBY = ballY;
-      ballX += vx;
-      ballY += vy;
-      vy    -= 1;
-      totalDist += Math.abs(vx);
+      const t = step + 1;
+
+      let p;
+      if (!hitPeak) {
+        p = denom < 1e-12 ? t / T_act : (1 - Math.pow(DRAG_RETAIN, t)) / denom;
+        if (p >= DRAG_CUTOFF) {
+          hitPeak    = true;
+          peakProg   = p;
+          peakTick   = t;
+          linearRate = T_act > t ? (1 - peakProg) / (T_act - t) : 0;
+        }
+      } else {
+        p = peakProg + linearRate * (t - peakTick);
+      }
+
+      const s = p * T;
+      ballX = arcFromX + s * vx;
+      ballY = arcFromY + V * s - s * (s - 1) / 2;
+
+      totalDist += Math.abs(ballX - prevBX);
       ticks++;
       if (ballY > peakAlt) peakAlt = ballY;
 

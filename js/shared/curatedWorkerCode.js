@@ -49,7 +49,11 @@ const GOAL_A_X = CENTER_X - GOAL_POST_POSITION;
 const GOAL_B_X = CENTER_X + GOAL_POST_POSITION;
 const ARC_PEAK_MIN = 2500;
 const ARC_PEAK_MAX = 5000;
-const MAX_BALL_VX  = 180;
+const ARC_VX_LIMIT = 180;
+const BALL_DRAG    = 0.01;
+const DRAG_RETAIN  = 1 - BALL_DRAG;
+const SPEED_MULT   = 1.1;
+const DRAG_CUTOFF  = 0.35;
 const GOAL_W_POW = 6;
 const GOAL_W_SCALE = 96;
 const W_PRECISION = 10000;
@@ -164,7 +168,7 @@ function minPeakForSpeed(fromX, fromY, targetX, targetY) {
   const absDx = Math.abs(targetX - fromX);
   if (absDx === 0) return 0;
   const dy = targetY - fromY;
-  let Tmin = Math.ceil(absDx / MAX_BALL_VX);
+  let Tmin = Math.ceil(absDx / ARC_VX_LIMIT);
   if (dy > 0 && Tmin * Tmin <= 2 * dy) Tmin = Math.ceil(Math.sqrt(2 * dy)) + 1;
   const V = Math.max(1, Math.ceil((Tmin + 2 * dy / Tmin - 1) / 2));
   return fromY + V * (V + 1) / 2;
@@ -237,12 +241,24 @@ function simulateSummary(seed) {
     const pMax = Math.max(pMin, Math.min(ARC_PEAK_MAX, 2500 + dx));
     const peak = pMin + rng.random(Math.max(1, pMax - pMin));
     const V = vFromPeak(peak, ballY);
-    const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
-    let vy = initVy;
-    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+    const { vx, T } = computeArc(ballX, ballY, to.x, to.y, V);
+    const T_act = Math.max(1, Math.round(T / SPEED_MULT));
+    const arcFromX = ballX, arcFromY = ballY;
+    const rT = Math.pow(DRAG_RETAIN, T_act);
+    const denom = 1 - rT;
+    let hitPeak = false, peakProg = 0, peakTick = 0, linearRate = 0;
+    for (let step = 0; step < T_act && ticks < TICK_LIMIT; step++) {
       const prevBX = ballX, prevBY = ballY;
-      ballX += vx; ballY += vy; vy -= 1;
-      totalDist += Math.abs(vx); ticks++;
+      const t = step + 1;
+      let p;
+      if (!hitPeak) {
+        p = denom < 1e-12 ? t / T_act : (1 - Math.pow(DRAG_RETAIN, t)) / denom;
+        if (p >= DRAG_CUTOFF) { hitPeak = true; peakProg = p; peakTick = t; linearRate = T_act > t ? (1 - peakProg) / (T_act - t) : 0; }
+      } else { p = peakProg + linearRate * (t - peakTick); }
+      const s = p * T;
+      ballX = arcFromX + s * vx;
+      ballY = arcFromY + V * s - s * (s - 1) / 2;
+      totalDist += Math.abs(ballX - prevBX); ticks++;
       if (ballY > peakAlt) peakAlt = ballY;
       for (const b of bonuses) {
         if (b.collected) continue;

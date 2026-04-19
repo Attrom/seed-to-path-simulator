@@ -91,6 +91,62 @@ The field is 27,100 world units wide → 2,710 pixels. The viewport is the brows
 
 ---
 
+## Field Center
+
+The field center is at `fieldWidth / 2 = 13,550` world units on the horizontal axis. Vertically, the center has no special world-Y coordinate — there is no explicit "center line height". The ground sits at `worldY = 0`, and the viewport shows -980 to +6020, so the vertical center of the **viewport** is at `worldY = 2,520` (the midpoint of -980 and 6020). This is within the bonus spawn band (2,450–4,100), roughly where the action happens.
+
+In the viewport, the ground is 98 pixels from the bottom (pixel 602 out of 700). The remaining 602 pixels above ground display the airspace where arcs peak and bonuses float.
+
+---
+
+## Goalpost Positions
+
+The goalposts are at:
+
+- **Goal A** (left): `x = 1,390` world units
+- **Goal B** (right): `x = 25,710` world units
+
+These x-positions represent the **inner edge** of the goalpost, not its center. This is the line the ball crosses when scoring — the position where the ball arrives at the end of the final arc. In the simulation, when the ball targets a goal, it travels to exactly this x-coordinate.
+
+Visually, the goalpost is rendered as a narrow vertical bar (8 pixels wide, centered on the x-coordinate) extending from the ground (`worldY = 0`) up to `goalpostHeight = 2,230` world units (223 pixels tall). But logically, the x-position marks the edge of the goal frame — the boundary between "in play" and "goal".
+
+The goalkeepers are also positioned at these same x-coordinates, centered on the goalpost edge.
+
+The distance between the two goalposts is `25,710 - 1,390 = 24,320` world units (2,432 pixels). The goalposts are symmetric around the field center: each is `12,160` units from center (`13,550 ± 12,160`).
+
+---
+
+## Player Vertical Positioning (Receive/Shoot Heights)
+
+Players stand at fixed x-positions on the field, but the **height at which the ball arrives at and departs from a player** varies depending on how far the next pass will travel. This is the "receive/shoot height" — the y-coordinate of the ball when it's at a player stop.
+
+There are two heights:
+
+| Height | Value | Pixels above ground | When used |
+|--------|-------|--------------------:|-----------|
+| **Low** | 790 world units | 79px | Long passes (outgoing distance > 7,000 units) and the kickoff player |
+| **High** | 1,950 world units | 195px | Short passes (outgoing distance ≤ 7,000 units) |
+
+The logic (in `buildStops` in `core.js`):
+
+1. The **kickoff player** (first stop) always uses the low height — the ball starts low.
+2. For every other player stop, the algorithm looks at the **outgoing** pass distance (horizontal distance to the *next* stop). If it's greater than 7,000 world units, the player receives/shoots from the low height. If it's 7,000 or less, the player uses the high height.
+3. **Goal stops** always use the low height (790 units) — the ball arrives at the goalpost low.
+
+The reasoning: short passes between nearby players produce steep, high arcs, so the ball naturally arrives higher. Long passes across the field produce flatter arcs that arrive lower. The two discrete heights approximate this physical intuition.
+
+**Team B height offset**: Team B players have an additional `+60` world units added to their receive/shoot height (6 extra pixels). This small asymmetry means Team B players receive the ball slightly higher than Team A players at the same pass distance.
+
+**Visual sprite positioning** is separate from the receive/shoot height. The player sprite's vertical placement uses:
+
+- `playerBaseHeight = 240` world units (24px above ground) — the bottom of the sprite
+- `playerModelHeight = 1,350` world units (135px) — the sprite height
+- Team B sprites get the same `+60` offset on their base
+
+So a Team A player sprite spans from `worldY = 240` to `worldY = 1,590` (24px to 159px above ground). A Team B player sprite spans from `worldY = 300` to `worldY = 1,650` (30px to 165px above ground). Both the low receive height (790) and high receive height (1,950) fall within or near the sprite's vertical range, making the ball visually appear to arrive at the player's body (low) or above their head (high).
+
+---
+
 ## Camera System
 
 The camera is horizontal-only (vertical range is fixed at -980 to +6020). It follows the ball:
