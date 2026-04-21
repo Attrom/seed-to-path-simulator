@@ -1203,7 +1203,7 @@ function updateEventsStrip(result, container) {
     const el = document.createElement('span');
     const START_EV = ['takeoff', 'kickoff'];
     const WIN_EV   = ['landed', 'goal'];
-    const LOSS_EV  = ['crashed', 'saved'];
+    const LOSS_EV  = ['crashed', 'saved', 'missed'];
     if (START_EV.includes(ev.label))      el.className = 'ev ev-start';
     else if (WIN_EV.includes(ev.label))   el.className = 'ev ev-end-win';
     else if (LOSS_EV.includes(ev.label))  el.className = 'ev ev-end-crash';
@@ -1546,7 +1546,7 @@ const fieldConfig = {
       "team": "B"
     }
   ],
-  "playerPointLowHeight": 790,
+  "playerPointLowHeight": 420,
   "playerPointHighHeight": 1950,
   "teamBHeightOffset": 60,
   "maxMultiplierHeight": 4100,
@@ -1598,6 +1598,9 @@ const GameFifaMastersCore = {};
  *   landed          (boolean)  Did the player/bettor WIN this round?
  *   isGoal          (boolean)  Was the final shot a goal? (win/loss depends
  *                              on WHICH goal — see field-config.js header)
+ *   shotZone        ('low'|'high'|'above')
+ *                              Where the final shot targeted the goalpost.
+ *                              'low'/'high' = at the keeper, 'above' = over the crossbar.
  *   totalMult       (number)   Final multiplier if won, 0 if lost.
  *
  *   path            (array)    The ball's trajectory, one entry per simulation
@@ -1652,7 +1655,7 @@ const GameFifaMastersCore = {};
  *       so the first tick of the NEXT arc is at path[stops[i].arrivalFrame].
  *
  *   events          (array)    Discrete labeled moments in chronological order.
- *     [i].label     (string)   'kickoff', bonus label, 'goal', or 'saved'.
+ *     [i].label     (string)   'kickoff', bonus label, 'goal', 'saved', or 'missed'.
  *     [i].mult      (number)   Multiplier at this event.
  *     [i].isLoss    (boolean)  true if mult dropped vs. previous event.
  *
@@ -1679,7 +1682,8 @@ const GameFifaMastersCore = {};
  *     3. buildTravelList iteratively picks the next pass target or goal
  *        using weighted random selection.  Closer players & goals nearer
  *        to the kicker's forward direction are more likely.
- *     4. RNG decides goal vs save for the final shot.
+ *     4. RNG picks a shot zone (low/high/above) and, for low/high,
+ *        decides goal vs save.
  *     5. buildStops assigns a receive/shoot y-height to each stop based on
  *        the outgoing pass distance (long = low, short = high).
  *
@@ -1689,8 +1693,13 @@ const GameFifaMastersCore = {};
  *        capped so short shots don't fly unrealistically high.
  *     2. Initial vertical velocity (V) is derived from the peak.
  *     3. Horizontal velocity (vx) and flight duration (T) are computed so
- *        the ball lands exactly at the target stop.
- *     4. The ball is stepped tick-by-tick (ballX += vx, ballY += vy, vy -= 1).
+ *        the ball lands exactly at the target stop.  The arc geometry is
+ *        a symmetric parabola: y(s) = fromY + V·s − s·(s−1)/2.
+ *     4. The ball is stepped tick-by-tick along the parabola with
+ *        piecewise speed easing:
+ *          Ascent:  drag-based progress (fast kick burst, decelerating)
+ *          Descent: constant-speed progress (locked after the peak)
+ *        Always follows the same symmetric curve.
  *        Each tick is pushed to path[] and tested against all uncollected
  *        bonuses for collision (segment-to-point distance ≤ 150 world units).
  *     5. After all ticks for an arc, the ball is snapped to the exact stop
@@ -1713,6 +1722,8 @@ const PLAYER_POINT_HIGH_HEIGHT = fieldConfig.playerPointHighHeight;
 const TEAM_B_HEIGHT_OFFSET     = fieldConfig.teamBHeightOffset;
 const MAX_MULTIPLIER_HEIGHT    = fieldConfig.maxMultiplierHeight;
 const MIN_MULTIPLIER_HEIGHT    = fieldConfig.minMultiplierHeight;
+const GOALPOST_HEIGHT          = fieldConfig.goalpostHeight;
+const GOAL_ABOVE_HEIGHT        = GOALPOST_HEIGHT + 500;
 
 // ─── Algorithm constants ─────────────────────────────────────────────────────
 // These tune the simulation behaviour.  Changing any of them will produce
@@ -1726,7 +1737,12 @@ const TICK_LIMIT     = 20000;        // safety cap — simulation aborts if exce
 
 const ARC_PEAK_MIN   = 2500;  // minimum arc peak height (world units above ground)
 const ARC_PEAK_MAX   = 5000;  // maximum arc peak height (capped further by shot distance)
-const MAX_BALL_VX    = 180;   // max horizontal velocity per tick (world units)
+const ARC_VX_LIMIT   = 180;   // max geometric vx used to size arc peaks (not a speed cap)
+
+const BALL_DRAG      = 0.01; // fraction of speed lost per tick during ascent (kick burst)
+const DRAG_RETAIN    = 1 - BALL_DRAG; // fraction retained each tick (0.992)
+const SPEED_MULT     = 1.1;  // overall ball speed multiplier (>1 = faster)
+const DRAG_CUTOFF    = 0.35; // fraction of arc where drag stops and constant speed begins
 
 const GOAL_W_POW     = 6;     // exponent for goalpost targeting weight (proximity^POW)
 const GOAL_W_SCALE   = 96;    // scale factor for goalpost weight
@@ -1883,12 +1899,19 @@ function chooseTarget(rng, kickerX, kickRight, players, kickerIdx, prevIdx) {
 }
 
 // ─── Arc computation ────────────────────────────────────────────────────────
-// Physics model:  y(t) = fromY + V*t − t*(t−1)/2   (discrete gravity, vy -= 1/tick)
-// Peak altitude  = fromY + V*(V+1)/2
-// vFromPeak      → derives initial vy from a desired peak height.
-// minPeakForSpeed → minimum peak so horizontal speed stays ≤ MAX_BALL_VX.
-// computeArc     → given initial vy (V), computes flight time T and horizontal
-//                  velocity vx so the ball lands exactly at the target.
+// Geometry:  y(s) = fromY + V·s − s·(s−1)/2   (continuous parabola)
+// Peak altitude = fromY + V·(V+1)/2
+// vFromPeak     → derives initial vy (V) from a desired peak height.
+// minPeakForSpeed → minimum peak so the geometric vx stays ≤ ARC_VX_LIMIT.
+// computeArc    → given V, computes flight duration T and geometric vx = dx/T.
+//
+// Speed model (applied in the tick loop, not here):
+//   Ascent  — exponential drag:  p(t) = (1 − DRAG_RETAIN^t) / denom
+//             Ball starts fast (kick burst) and decelerates up to the peak.
+//   Descent — constant speed:    p(t) = peakP + linearRate · (t − peakTick)
+//             After the peak the ball's progress rate freezes, so oX speed
+//             stays constant while gravity handles oY naturally.
+//   Ball position at tick t = parabola sampled at s = p(t) · T.
 
 function vFromPeak(peak, fromY) {
   const rel = peak - fromY;
@@ -1899,7 +1922,7 @@ function minPeakForSpeed(fromX, fromY, targetX, targetY) {
   const absDx = Math.abs(targetX - fromX);
   if (absDx === 0) return 0;
   const dy = targetY - fromY;
-  let Tmin = Math.ceil(absDx / MAX_BALL_VX);
+  let Tmin = Math.ceil(absDx / ARC_VX_LIMIT);
   if (dy > 0 && Tmin * Tmin <= 2 * dy) {
     Tmin = Math.ceil(Math.sqrt(2 * dy)) + 1;
   }
@@ -1941,14 +1964,16 @@ function buildTravelList(rng, players, startIdx) {
 
 // Converts the target list into a full stop sequence (kickoff player + targets)
 // and assigns each stop a y-height based on the outgoing pass distance.
-function buildStops(players, startIdx, targets) {
+function buildStops(players, startIdx, targets, shotZone) {
   const stops = [
     { type: 'player', index: startIdx, x: players[startIdx].x },
     ...targets,
   ];
   for (let i = 0; i < stops.length; i++) {
     if (stops[i].type === 'goal') {
-      stops[i].y = PLAYER_POINT_LOW_HEIGHT;
+      if (shotZone === 'above')     stops[i].y = GOAL_ABOVE_HEIGHT;
+      else if (shotZone === 'high') stops[i].y = PLAYER_POINT_HIGH_HEIGHT;
+      else                          stops[i].y = PLAYER_POINT_LOW_HEIGHT;
     } else {
       const off = players[stops[i].index].team === 'B' ? TEAM_B_HEIGHT_OFFSET : 0;
       if (i === 0) {
@@ -1979,6 +2004,7 @@ function buildStops(players, startIdx, targets) {
 //   events       – [{label, mult, isLoss}, ...]
 //   landed       – boolean (did the player win?)
 //   isGoal       – boolean (was the final shot a goal? — determines win/loss per goal side)
+//   shotZone     – 'low'|'high'|'above' (where the final shot targeted)
 //   totalMult    – final multiplier if won, else 0
 //   ticks, shipDist, peakAlt, bonusesCollected, positiveBonuses, negativeBonuses,
 //   totalShots, shotsA, shotsB, dirChanges, shots,
@@ -1995,10 +2021,15 @@ function simulate(seed) {
 
   // Phase 1 — travel list (target-selection RNG)
   const targets  = buildTravelList(rng, players, startIdx);
-  const isGoal   = rng.random(2) === 0;
-  const stops    = buildStops(players, startIdx, targets);
+
+  // Shot zone: LOW (40%), HIGH (40%), or ABOVE the crossbar (20%)
+  const shotZoneRoll = rng.random(5);
+  const shotZone = shotZoneRoll < 2 ? 'low' : shotZoneRoll < 4 ? 'high' : 'above';
+  const isGoal   = shotZone === 'above' ? false : rng.random(2) === 0;
+
+  const stops    = buildStops(players, startIdx, targets, shotZone);
   const lastStop = stops[stops.length - 1];
-  // Goal A: saved = cashout, goal = crash.  Goal B: goal = cashout, saved = crash.
+  // Goal A: saved/missed = cashout, goal = crash.  Goal B: goal = cashout, saved/missed = crash.
   const landed   = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
 
   // Phase 2 — simulate arcs (arc-height RNG)
@@ -2040,14 +2071,39 @@ function simulate(seed) {
     const peak     = pMin + rng.random(Math.max(1, pMax - pMin));
     const V        = vFromPeak(peak, ballY);
     const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
+    const T_act     = Math.max(1, Math.round(T / SPEED_MULT));
 
-    let vy = initVy;
-    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+    const arcFromX  = ballX;
+    const arcFromY  = ballY;
+    const rT        = Math.pow(DRAG_RETAIN, T_act);
+    const denom     = 1 - rT;
+    let hitPeak     = false;
+    let peakProg    = 0;
+    let peakTick    = 0;
+    let linearRate  = 0;
+
+    for (let step = 0; step < T_act && ticks < TICK_LIMIT; step++) {
       const prevBX = ballX, prevBY = ballY;
-      ballX += vx;
-      ballY += vy;
-      vy    -= 1;
-      totalDist += Math.abs(vx);
+      const t = step + 1;
+
+      let p;
+      if (!hitPeak) {
+        p = denom < 1e-12 ? t / T_act : (1 - Math.pow(DRAG_RETAIN, t)) / denom;
+        if (p >= DRAG_CUTOFF) {
+          hitPeak    = true;
+          peakProg   = p;
+          peakTick   = t;
+          linearRate = T_act > t ? (1 - peakProg) / (T_act - t) : 0;
+        }
+      } else {
+        p = peakProg + linearRate * (t - peakTick);
+      }
+
+      const s = p * T;
+      ballX = arcFromX + s * vx;
+      ballY = arcFromY + V * s - s * (s - 1) / 2;
+
+      totalDist += Math.abs(ballX - prevBX);
       ticks++;
 
       if (ballY > peakAlt) peakAlt = ballY;
@@ -2084,7 +2140,8 @@ function simulate(seed) {
     ballY = to.y;
   }
 
-  pushEv(isGoal ? 'goal' : 'saved', landed ? mult : 0);
+  const outcomeLabel = shotZone === 'above' ? 'missed' : isGoal ? 'goal' : 'saved';
+  pushEv(outcomeLabel, landed ? mult : 0);
 
   let totalShots = 0, shotsA = 0, shotsB = 0, dirChanges = 0;
   let prevTeam = null;
@@ -2102,7 +2159,7 @@ function simulate(seed) {
 
   return {
     seed, startTeam, path, bonuses, collected, stops, events,
-    landed, isGoal,
+    landed, isGoal, shotZone,
     totalMult: landed ? mult : 0,
     ticks,
     shipDist: totalDist,
@@ -2137,8 +2194,10 @@ function simulateSummary(seed) {
 
   // Phase 1 — travel list
   const targets  = buildTravelList(rng, players, startIdx);
-  const isGoal   = rng.random(2) === 0;
-  const stops    = buildStops(players, startIdx, targets);
+  const shotZoneRoll = rng.random(5);
+  const shotZone = shotZoneRoll < 2 ? 'low' : shotZoneRoll < 4 ? 'high' : 'above';
+  const isGoal   = shotZone === 'above' ? false : rng.random(2) === 0;
+  const stops    = buildStops(players, startIdx, targets, shotZone);
   const lastStop = stops[stops.length - 1];
   const landed   = lastStop.x === GOAL_B_X ? isGoal : !isGoal;
 
@@ -2163,14 +2222,39 @@ function simulateSummary(seed) {
     const peak     = pMin + rng.random(Math.max(1, pMax - pMin));
     const V        = vFromPeak(peak, ballY);
     const { vx, vy: initVy, T } = computeArc(ballX, ballY, to.x, to.y, V);
+    const T_act     = Math.max(1, Math.round(T / SPEED_MULT));
 
-    let vy = initVy;
-    for (let step = 0; step < T && ticks < TICK_LIMIT; step++) {
+    const arcFromX  = ballX;
+    const arcFromY  = ballY;
+    const rT        = Math.pow(DRAG_RETAIN, T_act);
+    const denom     = 1 - rT;
+    let hitPeak     = false;
+    let peakProg    = 0;
+    let peakTick    = 0;
+    let linearRate  = 0;
+
+    for (let step = 0; step < T_act && ticks < TICK_LIMIT; step++) {
       const prevBX = ballX, prevBY = ballY;
-      ballX += vx;
-      ballY += vy;
-      vy    -= 1;
-      totalDist += Math.abs(vx);
+      const t = step + 1;
+
+      let p;
+      if (!hitPeak) {
+        p = denom < 1e-12 ? t / T_act : (1 - Math.pow(DRAG_RETAIN, t)) / denom;
+        if (p >= DRAG_CUTOFF) {
+          hitPeak    = true;
+          peakProg   = p;
+          peakTick   = t;
+          linearRate = T_act > t ? (1 - peakProg) / (T_act - t) : 0;
+        }
+      } else {
+        p = peakProg + linearRate * (t - peakTick);
+      }
+
+      const s = p * T;
+      ballX = arcFromX + s * vx;
+      ballY = arcFromY + V * s - s * (s - 1) / 2;
+
+      totalDist += Math.abs(ballX - prevBX);
       ticks++;
       if (ballY > peakAlt) peakAlt = ballY;
 
@@ -3206,9 +3290,9 @@ function advRun(seedOverride) {
   }
   advResult = activeGame.simulate(seed);
 
-  // On goal outcomes, extend the path past the goalpost until the ball hits the ground
+  // On goal/missed outcomes, extend the path past the goalpost until the ball hits the ground
   const lastEv = advResult.events[advResult.events.length - 1];
-  if (lastEv && lastEv.label === 'goal' && advResult.path.length >= 2) {
+  if (lastEv && (lastEv.label === 'goal' || lastEv.label === 'missed') && advResult.path.length >= 2) {
     const p = advResult.path;
     const n = p.length - 1;
     const vx = p[n].dist - p[n - 1].dist;

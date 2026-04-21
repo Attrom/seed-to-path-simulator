@@ -57,7 +57,7 @@ const GOAL_POST_POSITION       = 12160;  // symmetric offset from center for eac
 const GOALPOST_HEIGHT          = 2230;   // visual height of the goalpost
 const MAX_MULTIPLIER_HEIGHT    = 4100;   // top of the bonus spawn band (y)
 const MIN_MULTIPLIER_HEIGHT    = 2450;   // bottom of the bonus spawn band (y)
-const PLAYER_POINT_LOW_HEIGHT  = 790;    // ball y for long-distance passes
+const PLAYER_POINT_LOW_HEIGHT  = 420;    // ball y for long-distance passes
 const PLAYER_POINT_HIGH_HEIGHT = 1950;   // ball y for short-distance passes
 const TEAM_B_HEIGHT_OFFSET     = 60;     // additional y for Team B receive heights
 

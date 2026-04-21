@@ -62,7 +62,7 @@ Array of `{ label, mult, isLoss }`. The last event's `label` is `'goal'`, `'save
 
 One of `'low'`, `'high'`, or `'above'`. Indicates where the final shot was aimed relative to the goalkeeper/goalpost:
 
-- `'low'` — at the keeper's feet (ball arrives at 790 world units). Keeper may save or concede.
+- `'low'` — at the keeper's feet (ball arrives at 420 world units). Keeper may save or concede.
 - `'high'` — at the keeper's upper body (ball arrives at 1,950 world units). Keeper may save or concede.
 - `'above'` — over the crossbar (ball arrives at 2,730 world units, above the goalpost). Always a miss — counts as WIN on Team A's side, LOSE on Team B's side.
 
@@ -132,7 +132,7 @@ There are two heights:
 
 | Height | Value | Pixels above ground | When used |
 |--------|-------|--------------------:|-----------|
-| **Low** | 790 world units | 79px | Long passes (outgoing distance > 7,000 units) and the kickoff player |
+| **Low** | 420 world units | 42px | Long passes (outgoing distance > 7,000 units) and the kickoff player |
 | **High** | 1,950 world units | 195px | Short passes (outgoing distance ≤ 7,000 units) |
 
 The logic (in `buildStops` in `core.js`):
@@ -140,7 +140,7 @@ The logic (in `buildStops` in `core.js`):
 1. The **kickoff player** (first stop) always uses the low height — the ball starts low.
 2. For every other player stop, the algorithm looks at the **outgoing** pass distance (horizontal distance to the *next* stop). If it's greater than 7,000 world units, the player receives/shoots from the low height. If it's 7,000 or less, the player uses the high height.
 3. **Goal stops** use one of three heights determined by the shot zone (`shotZone`):
-   - `'low'` → 790 world units (keeper's feet)
+   - `'low'` → 420 world units (keeper's feet)
    - `'high'` → 1,950 world units (keeper's upper body)
    - `'above'` → 2,730 world units (over the crossbar, above the goalpost's 2,230-unit height)
 
@@ -154,7 +154,7 @@ The reasoning: short passes between nearby players produce steep, high arcs, so 
 - `playerModelHeight = 1,350` world units (135px) — the sprite height
 - Team B sprites get the same `+60` offset on their base
 
-So a Team A player sprite spans from `worldY = 240` to `worldY = 1,590` (24px to 159px above ground). A Team B player sprite spans from `worldY = 300` to `worldY = 1,650` (30px to 165px above ground). Both the low receive height (790) and high receive height (1,950) fall within or near the sprite's vertical range, making the ball visually appear to arrive at the player's body (low) or above their head (high).
+So a Team A player sprite spans from `worldY = 240` to `worldY = 1,590` (24px to 159px above ground). A Team B player sprite spans from `worldY = 300` to `worldY = 1,650` (30px to 165px above ground). Both the low receive height (420) and high receive height (1,950) fall within or near the sprite's vertical range, making the ball visually appear to arrive at the player's body (low) or above their head (high).
 
 ---
 

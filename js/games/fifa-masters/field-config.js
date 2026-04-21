@@ -123,7 +123,7 @@ export const fieldConfig = {
       "team": "B"
     }
   ],
-  "playerPointLowHeight": 790,
+  "playerPointLowHeight": 420,
   "playerPointHighHeight": 1950,
   "teamBHeightOffset": 60,
   "maxMultiplierHeight": 4100,
